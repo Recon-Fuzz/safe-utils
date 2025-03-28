@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+# Remappings Examples
+remappings = [
+#                "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+#                "@uniV3-periphery/=lib/v3-periphery/",
+#                "@uniswap/v3-core/contracts/=lib/v3-core/contracts/",
+#                "@bytes-utils/=node_modules/solidity-bytes-utils/",
+#                "@cyfrin/src/=lib/foundry-devops/src/",
+#                "@uni-router-v3/contracts/=lib/swap-router-contracts/contracts/"
+             ]
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
