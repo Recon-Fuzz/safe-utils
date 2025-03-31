@@ -84,7 +84,7 @@ library SafeUtils {
         *@param _payload the payload to generate the message
     */
     function _getTransactionHash(ISafe _safe, TransactionPayload memory _payload) internal view returns(bytes32 txHash_){
-        console.log("Initiate external call to generate the tx hash");
+        console.log("Generating the transaction hash:");
         txHash_ = _safe.getTransactionHash(
                 _payload.to,
                 _payload.value,
@@ -103,11 +103,11 @@ library SafeUtils {
         *@notice Function to sign the obtained transaction hash using Forge::Vm.sol
         *@dev EIP- compatible
     */
-    function _signTransaction(ISafe _safe, TransactionPayload memory _txPayload) internal view returns(bytes memory signedMessage_){
-        console.log("Generating the transaction hash:");
+    function _signTransaction(ISafe _safe, TransactionPayload memory _txPayload, uint256 _pk) internal view returns(bytes memory signedMessage_){
         bytes32 dataHash = _getTransactionHash(_safe, _txPayload);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(dataHash);
+        
+        console.log("Signing the message");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(_pk, dataHash);
 
         signedMessage_ = abi.encodePacked(r, s, v);
     }

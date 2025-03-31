@@ -1,62 +1,67 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { Test } from "forge-std/Test.sol";
+
 ///@notice Foundry Stuff
 import { console } from "forge-std/console.sol";
 
 ///@notice Scripts
-import { DeployScript } from "script/Deploy.s.sol";
+import { InteractionsScript } from "script/Interactions.s.sol";
 
-///@notice Test Helpers
-import { BaseTests } from "./BaseTests.t.sol";
-
-///@notice Protocol contracts
+import { SafeUtils } from "src/SafeUtils.sol";
+import { Enum } from "@safe/contracts/interfaces/ISafe.sol";
 
 /**
     *@notice Environment for Forked Tests
     *@dev it inherits the BaseTests so you don't need to declare all it again
     *@notice overrides the setUp function
 */
-contract ForkedHelper is BaseTests {
+contract ForkedHelper is Test {
 
     ///@notice recover the RPC_URLs from the .env file
-    string BASE_SEP_RPC_URL = vm.envString("BASE_SEP_RPC_URL");
-    string BASE_RPC_URL = vm.envString("BASE_MAINNET_RPC");
+    string SEP_RPC_URL = vm.envString("SEPOLIA_RPC_URL");
+
     ///@notice variable store each forked chain
-    uint256 baseSepolia;
-    uint256 baseMainnet;
+    uint256 sepolia;
 
-    ///@notice Mainnet variables like tokens. They could be store on the HelperConfig as well if you will work with only one ou a few.
-    // IERC20 constant USDC_BASE_MAINNET = IERC20(0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913);
-    // IERC20 constant WETH_BASE_MAINNET = IERC20(0x4200000000000000000000000000000000000006);
+    ///@notice script to test
+    InteractionsScript public s_interaction;
 
-    ///@notice Sometimes is easier to get and valid address on-chain and use their money, like this:
-    address constant USDC_HOLDER = 0xD34EA7278e6BD48DefE656bbE263aEf11101469c; //Coinbase7 Wallet
+    ///@notice multi sig address. Update it for you address on the .env file
+    address multiSig = vm.envAddress("MULTISIG_ADDRESS");
+    address signer;
+    uint256 userPrivateKey;
+    address signer2 = vm.envAddress("SIGNER2");
+    address receiver = vm.envAddress("RECEIVER");
 
-    ///@notice always use CONSTANTS instead of Magic Numbers> Like this ones: 
-    uint24 constant USDC_WETH_POOL_FEE = 500; //0.05% - Uniswap Variables
-    uint256 constant USDC_INITIAL_BALANCE = 10_000*10**6; // Token Amounts
+    ///@notice Mock Signer
 
-    function setUp() public override {
+    function setUp() public {
         ///@notice Create Forked Environment
-        baseSepolia = vm.createFork(BASE_SEP_RPC_URL);
-        baseMainnet = vm.createFork(BASE_RPC_URL);
+        sepolia = vm.createFork(SEP_RPC_URL);
         
         ///@notice to select the fork we will use. You can change between them on tests
-        vm.selectFork(baseMainnet);
+        vm.selectFork(sepolia);
 
         ///@notice deploys the Scripts
-        s_deploy = new DeployScript();
+        s_interaction = new InteractionsScript();
 
-        ///@notice get the deployed 
-        (s_helperConfig) = s_deploy.run();
+        (signer, userPrivateKey) = makeAddrAndKey("test");
+    }
 
-        ///@notice Use the Coinbase Wallet to distribute some USDC to our wallets
-        vm.startPrank(USDC_HOLDER);
-        // USDC_BASE_MAINNET.transfer(s_user02, USDC_INITIAL_BALANCE);
-        // USDC_BASE_MAINNET.transfer(s_user03, USDC_INITIAL_BALANCE);
-        // USDC_BASE_MAINNET.transfer(s_user04, USDC_INITIAL_BALANCE);
-        // USDC_BASE_MAINNET.transfer(s_user05, USDC_INITIAL_BALANCE);
-        vm.stopPrank();
+    function payloadConstructor() public view returns(SafeUtils.TransactionPayload memory payload_){
+        payload_ = SafeUtils.TransactionPayload({
+            to: receiver,
+            value: 0.01 ether,
+            data: "",
+            operation: Enum.Operation.Call ,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: 0x0000000000000000000000000000000000000000,
+            refundReceiver: 0x0000000000000000000000000000000000000000,
+            _nonce: 2
+        });
     }
 }
