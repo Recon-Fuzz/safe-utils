@@ -33,7 +33,7 @@ function setUp() public {
 #### 3. Propose transactions
 
 ```solidity
-safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1);
+safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender);
 ```
 
 ### Requirements
