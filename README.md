@@ -1,66 +1,50 @@
-## Foundry
+## safe-utils
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Interact with the [Safe API](https://docs.safe.global/sdk/api-kit) from Foundry scripts.
 
-Foundry consists of:
+### Installation
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge install Recon-Fuzz/safe-utils
 ```
 
-### Test
+### Usage
 
-```shell
-$ forge test
+#### 1. Import the library
+
+```solidity
+import {Safe} from "safe-utils/Safe.sol";
 ```
 
-### Format
+#### 2. Initialize the client
 
-```shell
-$ forge fmt
+Build the client by passing your safe address.
+
+```solidity
+using Safe for *;
+
+Safe.Client safe;
+
+function setUp() public {
+  safe.initialize(safeAddress);
+}
 ```
 
-### Gas Snapshots
+#### 3. Propose transactions
 
-```shell
-$ forge snapshot
+```solidity
+safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1);
 ```
 
-### Anvil
+### Requirements
 
-```shell
-$ anvil
+- Foundry with FFI enabled:
+  - Pass `--ffi` to your commands (e.g. `forge test --ffi`)
+  - Or set `ffi = true` in your `foundry.toml`
+
+```toml
+[profile.default]
+ffi = true
 ```
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+- All `Recon-Fuzz/solidity-http` dependencies
