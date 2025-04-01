@@ -152,4 +152,15 @@ library Safe {
         bytes memory signature = abi.encodePacked(sig.r, sig.s, sig.v);
         return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, nonce);
     }
+
+    function getExecTransactionData(Client storage, address to, bytes memory data)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodeCall(
+            SafeSmartAccount.execTransaction,
+            (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), new bytes(0))
+        );
+    }
 }
