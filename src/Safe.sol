@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {Vm} from "forge-std/Vm.sol";
-import {HTTP} from "solidity-http/HTTP.sol";
-import {Safe as SafeSmartAccount} from "safe-smart-account/Safe.sol";
-import {Enum} from "safe-smart-account/common/Enum.sol";
+import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
+import {Safe as SafeSmartAccount} from "../lib/safe-smart-account/contracts/Safe.sol";
+import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
 
 library Safe {
     using HTTP for *;
