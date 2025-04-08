@@ -153,14 +153,18 @@ library Safe {
         return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, nonce);
     }
 
-    function getExecTransactionData(Client storage, address to, bytes memory data)
+    function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
         internal
-        pure
+        view
         returns (bytes memory)
     {
+        uint256 nonce = getNonce(self);
+        Signature memory sig;
+        (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
+        bytes memory signature = abi.encodePacked(sig.r, sig.s, sig.v);
         return abi.encodeCall(
             SafeSmartAccount.execTransaction,
-            (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), new bytes(0))
+            (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), signature)
         );
     }
 }
