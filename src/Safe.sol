@@ -146,13 +146,17 @@ library Safe {
     }
 
     function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
-        return proposeTransaction(self, to, data, sender, false);
+        return proposeTransaction(self, to, data, sender, string(""));
     }
 
-    function proposeTransaction(Client storage self, address to, bytes memory data, address sender, bool signTypedData)
-        internal
-    {
-        bytes memory signature = sign(self, to, data, sender, signTypedData);
+    function proposeTransaction(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address sender,
+        string memory derivationPath
+    ) internal {
+        bytes memory signature = sign(self, to, data, sender, derivationPath);
         return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, getNonce(self));
     }
 
@@ -160,7 +164,7 @@ library Safe {
         internal
         returns (bytes memory)
     {
-        return getExecTransactionData(self, to, data, sender, false);
+        return getExecTransactionData(self, to, data, sender, string(""));
     }
 
     function getExecTransactionData(
@@ -168,28 +172,30 @@ library Safe {
         address to,
         bytes memory data,
         address sender,
-        bool signTypedData
+        string memory derivationPath
     ) internal returns (bytes memory) {
-        bytes memory signature = sign(self, to, data, sender, signTypedData);
+        bytes memory signature = sign(self, to, data, sender, derivationPath);
         return abi.encodeCall(
             SafeSmartAccount.execTransaction,
             (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), signature)
         );
     }
 
-    function sign(Client storage self, address to, bytes memory data, address sender, bool signTypedData)
+    function sign(Client storage self, address to, bytes memory data, address sender, string memory derivationPath)
         internal
         returns (bytes memory)
     {
         uint256 nonce = getNonce(self);
-        if (signTypedData) {
-            string[] memory inputs = new string[](6);
+        if (bytes(derivationPath).length > 0) {
+            string[] memory inputs = new string[](8);
             inputs[0] = "cast";
             inputs[1] = "wallet";
             inputs[2] = "sign";
             inputs[3] = "--ledger";
-            inputs[4] = "--data";
-            inputs[5] = string.concat(
+            inputs[4] = "--mnemonic-derivation-path";
+            inputs[5] = derivationPath;
+            inputs[6] = "--data";
+            inputs[7] = string.concat(
                 '{"domain":{"chainId":"',
                 vm.toString(block.chainid),
                 '","verifyingContract":"',
