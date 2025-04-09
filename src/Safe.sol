@@ -146,25 +146,68 @@ library Safe {
     }
 
     function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
-        Signature memory sig;
-        uint256 nonce = getNonce(self);
-        (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
-        bytes memory signature = abi.encodePacked(sig.r, sig.s, sig.v);
-        return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, nonce);
+        return proposeTransaction(self, to, data, sender, false);
+    }
+
+    function proposeTransaction(Client storage self, address to, bytes memory data, address sender, bool signTypedData)
+        internal
+    {
+        bytes memory signature = sign(self, to, data, sender, signTypedData);
+        return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, getNonce(self));
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
         internal
-        view
         returns (bytes memory)
     {
-        uint256 nonce = getNonce(self);
-        Signature memory sig;
-        (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
-        bytes memory signature = abi.encodePacked(sig.r, sig.s, sig.v);
+        return getExecTransactionData(self, to, data, sender, false);
+    }
+
+    function getExecTransactionData(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address sender,
+        bool signTypedData
+    ) internal returns (bytes memory) {
+        bytes memory signature = sign(self, to, data, sender, signTypedData);
         return abi.encodeCall(
             SafeSmartAccount.execTransaction,
             (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), signature)
         );
+    }
+
+    function sign(Client storage self, address to, bytes memory data, address sender, bool signTypedData)
+        internal
+        returns (bytes memory)
+    {
+        uint256 nonce = getNonce(self);
+        if (signTypedData) {
+            string[] memory inputs = new string[](6);
+            inputs[0] = "cast";
+            inputs[1] = "wallet";
+            inputs[2] = "sign";
+            inputs[3] = "--ledger";
+            inputs[4] = "--data";
+            inputs[5] = string.concat(
+                '{"domain":{"chainId":"',
+                vm.toString(block.chainid),
+                '","verifyingContract":"',
+                vm.toString(instance(self).safe),
+                '"},"message":{"to":"',
+                vm.toString(to),
+                '","value":"0","data":"',
+                vm.toString(data),
+                '","operation":0,"baseGas":"0","gasPrice":"0","gasToken":"0x0000000000000000000000000000000000000000","refundReceiver":"0x0000000000000000000000000000000000000000","nonce":',
+                vm.toString(nonce),
+                ',"safeTxGas":"0"},"primaryType":"SafeTx","types":{"SafeTx":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"operation","type":"uint8"},{"name":"safeTxGas","type":"uint256"},{"name":"baseGas","type":"uint256"},{"name":"gasPrice","type":"uint256"},{"name":"gasToken","type":"address"},{"name":"refundReceiver","type":"address"},{"name":"nonce","type":"uint256"}]}}'
+            );
+            bytes memory output = vm.ffi(inputs);
+            return output;
+        } else {
+            Signature memory sig;
+            (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
+            return abi.encodePacked(sig.r, sig.s, sig.v);
+        }
     }
 }

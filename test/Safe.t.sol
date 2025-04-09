@@ -30,4 +30,10 @@ contract SafeTest is Test {
         vm.rememberKey(uint256(foundrySigner1PrivateKey));
         safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1);
     }
+
+    function test_Safe_getExecTransactionData() public {
+        address weth = 0x4200000000000000000000000000000000000006;
+        bytes memory data = safe.getExecTransactionData(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1, true);
+        console.logBytes(data);
+    }
 }
