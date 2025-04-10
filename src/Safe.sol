@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {Vm} from "forge-std/Vm.sol";
 import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
 import {Safe as SafeSmartAccount} from "../lib/safe-smart-account/contracts/Safe.sol";
+import {MultiSendCallOnly} from "../lib/safe-smart-account/contracts/libraries/MultiSendCallOnly.sol";
 import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
 
 library Safe {
@@ -12,11 +13,14 @@ library Safe {
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
     error ApiKitUrlNotFound(uint256 chainId);
+    error MultiSendCallOnlyNotFound(uint256 chainId);
+    error ArrayLengthsMismatch(uint256 a, uint256 b);
 
     struct Instance {
         address safe;
         HTTP.Client http;
-        mapping(uint256 => string) urls;
+        mapping(uint256 chainId => string) urls;
+        mapping(uint256 chainId => MultiSendCallOnly) multiSendCallOnly;
         string requestBody;
     }
 
@@ -56,6 +60,9 @@ library Safe {
         i.urls[534352] = "https://safe-transaction-scroll.safe.global/api";
         i.urls[11155111] = "https://safe-transaction-sepolia.safe.global/api";
         i.urls[1313161554] = "https://safe-transaction-aurora.safe.global/api";
+
+        i.multiSendCallOnly[1] = MultiSendCallOnly(0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
+        i.multiSendCallOnly[8453] = MultiSendCallOnly(0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B);
         i.http.initialize().withHeader("Content-Type", "application/json");
         return self;
     }
@@ -70,6 +77,14 @@ library Safe {
             revert ApiKitUrlNotFound(chainId);
         }
         return url;
+    }
+
+    function getMultiSendCallOnly(Client storage self, uint256 chainId) internal view returns (MultiSendCallOnly) {
+        MultiSendCallOnly multiSendCallOnly = instance(self).multiSendCallOnly[chainId];
+        if (address(multiSendCallOnly) == address(0)) {
+            revert MultiSendCallOnlyNotFound(chainId);
+        }
+        return multiSendCallOnly;
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
@@ -135,18 +150,20 @@ library Safe {
         return proposeTransaction(self, to, 0, data, operation, sender, signature, getNonce(self));
     }
 
+    function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
+        return proposeTransaction(self, to, data, sender, string(""));
+    }
+
     function proposeTransaction(
         Client storage self,
         address to,
         bytes memory data,
+        Enum.Operation operation,
         address sender,
-        bytes memory signature
+        string memory derivationPath
     ) internal {
-        return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, getNonce(self));
-    }
-
-    function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
-        return proposeTransaction(self, to, data, sender, string(""));
+        bytes memory signature = sign(self, to, data, operation, sender, derivationPath);
+        return proposeTransaction(self, to, 0, data, operation, sender, signature, getNonce(self));
     }
 
     function proposeTransaction(
@@ -156,8 +173,31 @@ library Safe {
         address sender,
         string memory derivationPath
     ) internal {
-        bytes memory signature = sign(self, to, data, sender, derivationPath);
-        return proposeTransaction(self, to, 0, data, Enum.Operation.Call, sender, signature, getNonce(self));
+        return proposeTransaction(self, to, data, Enum.Operation.Call, sender, derivationPath);
+    }
+
+    function proposeTransactions(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        string memory derivationPath
+    ) internal {
+        if (targets.length != datas.length) {
+            revert ArrayLengthsMismatch(targets.length, datas.length);
+        }
+        bytes1 operation = bytes1(uint8(Enum.Operation.Call));
+        uint256 value = 0;
+        bytes memory transactions;
+        for (uint256 i = 0; i < targets.length; i++) {
+            uint256 dataLength = datas[i].length;
+            transactions =
+                abi.encodePacked(transactions, abi.encode(operation, targets[i], value, dataLength, datas[i]));
+        }
+        address to = address(getMultiSendCallOnly(self, block.chainid));
+        bytes memory data = abi.encodeCall(MultiSendCallOnly.multiSend, (transactions));
+        // using DelegateCall to preserve msg.sender across sub-calls
+        return proposeTransaction(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
@@ -174,17 +214,64 @@ library Safe {
         address sender,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        bytes memory signature = sign(self, to, data, sender, derivationPath);
+        return getExecTransactionData(self, to, data, Enum.Operation.Call, sender, derivationPath);
+    }
+
+    function getExecTransactionsData(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender
+    ) internal returns (bytes memory) {
+        return getExecTransactionsData(self, targets, datas, sender, string(""));
+    }
+
+    function getExecTransactionsData(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
+        if (targets.length != datas.length) {
+            revert ArrayLengthsMismatch(targets.length, datas.length);
+        }
+        bytes1 operation = bytes1(uint8(Enum.Operation.Call));
+        uint256 value = 0;
+        bytes memory transactions;
+        for (uint256 i = 0; i < targets.length; i++) {
+            uint256 dataLength = datas[i].length;
+            transactions =
+                abi.encodePacked(transactions, abi.encode(operation, targets[i], value, dataLength, datas[i]));
+        }
+        address to = address(getMultiSendCallOnly(self, block.chainid));
+        bytes memory data = abi.encodeCall(MultiSendCallOnly.multiSend, (transactions));
+        // using DelegateCall to preserve msg.sender across sub-calls
+        return getExecTransactionData(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
+    }
+
+    function getExecTransactionData(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
+        bytes memory signature = sign(self, to, data, operation, sender, derivationPath);
         return abi.encodeCall(
-            SafeSmartAccount.execTransaction,
-            (to, 0, data, Enum.Operation.Call, 0, 0, 0, address(0), payable(0), signature)
+            SafeSmartAccount.execTransaction, (to, 0, data, operation, 0, 0, 0, address(0), payable(0), signature)
         );
     }
 
-    function sign(Client storage self, address to, bytes memory data, address sender, string memory derivationPath)
-        internal
-        returns (bytes memory)
-    {
+    function sign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
         uint256 nonce = getNonce(self);
         if (bytes(derivationPath).length > 0) {
             string[] memory inputs = new string[](8);
@@ -204,7 +291,9 @@ library Safe {
                 vm.toString(to),
                 '","value":"0","data":"',
                 vm.toString(data),
-                '","operation":0,"baseGas":"0","gasPrice":"0","gasToken":"0x0000000000000000000000000000000000000000","refundReceiver":"0x0000000000000000000000000000000000000000","nonce":',
+                '","operation":',
+                vm.toString(uint8(operation)),
+                ',"baseGas":"0","gasPrice":"0","gasToken":"0x0000000000000000000000000000000000000000","refundReceiver":"0x0000000000000000000000000000000000000000","nonce":',
                 vm.toString(nonce),
                 ',"safeTxGas":"0"},"primaryType":"SafeTx","types":{"SafeTx":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"operation","type":"uint8"},{"name":"safeTxGas","type":"uint256"},{"name":"baseGas","type":"uint256"},{"name":"gasPrice","type":"uint256"},{"name":"gasToken","type":"address"},{"name":"refundReceiver","type":"address"},{"name":"nonce","type":"uint256"}]}}'
             );
