@@ -176,13 +176,11 @@ library Safe {
         return proposeTransaction(self, to, data, Enum.Operation.Call, sender, derivationPath);
     }
 
-    function proposeTransactions(
-        Client storage self,
-        address[] memory targets,
-        bytes[] memory datas,
-        address sender,
-        string memory derivationPath
-    ) internal {
+    function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
+        internal
+        view
+        returns (address, bytes memory)
+    {
         if (targets.length != datas.length) {
             revert ArrayLengthsMismatch(targets.length, datas.length);
         }
@@ -192,10 +190,21 @@ library Safe {
         for (uint256 i = 0; i < targets.length; i++) {
             uint256 dataLength = datas[i].length;
             transactions =
-                abi.encodePacked(transactions, abi.encode(operation, targets[i], value, dataLength, datas[i]));
+                abi.encodePacked(transactions, abi.encodePacked(operation, targets[i], value, dataLength, datas[i]));
         }
         address to = address(getMultiSendCallOnly(self, block.chainid));
         bytes memory data = abi.encodeCall(MultiSendCallOnly.multiSend, (transactions));
+        return (to, data);
+    }
+
+    function proposeTransactions(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        string memory derivationPath
+    ) internal {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         // using DelegateCall to preserve msg.sender across sub-calls
         return proposeTransaction(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
     }
@@ -233,19 +242,7 @@ library Safe {
         address sender,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        if (targets.length != datas.length) {
-            revert ArrayLengthsMismatch(targets.length, datas.length);
-        }
-        bytes1 operation = bytes1(uint8(Enum.Operation.Call));
-        uint256 value = 0;
-        bytes memory transactions;
-        for (uint256 i = 0; i < targets.length; i++) {
-            uint256 dataLength = datas[i].length;
-            transactions =
-                abi.encodePacked(transactions, abi.encode(operation, targets[i], value, dataLength, datas[i]));
-        }
-        address to = address(getMultiSendCallOnly(self, block.chainid));
-        bytes memory data = abi.encodeCall(MultiSendCallOnly.multiSend, (transactions));
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         // using DelegateCall to preserve msg.sender across sub-calls
         return getExecTransactionData(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
     }
