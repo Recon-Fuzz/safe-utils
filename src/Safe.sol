@@ -3,14 +3,17 @@ pragma solidity ^0.8.13;
 
 import {Vm} from "forge-std/Vm.sol";
 import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
-import {Safe as SafeSmartAccount} from "../lib/safe-smart-account/contracts/Safe.sol";
 import {MultiSendCallOnly} from "../lib/safe-smart-account/contracts/libraries/MultiSendCallOnly.sol";
 import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
+import {ISafeSmartAccount} from "./ISafeSmartAccount.sol";
 
 library Safe {
     using HTTP for *;
 
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
+
+    // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
+    bytes32 constant SAFE_THRESHOLD_STORAGE_SLOT = bytes32(uint256(4));
 
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
@@ -32,6 +35,16 @@ library Safe {
 
     struct Client {
         Instance[] instances;
+    }
+
+    struct ExecTransactionParams {
+        address to;
+        uint256 value;
+        bytes data;
+        Enum.Operation operation;
+        address sender;
+        bytes signature;
+        uint256 nonce;
     }
 
     function initialize(Client storage self, address safe) internal returns (Client storage) {
@@ -88,7 +101,7 @@ library Safe {
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
-        return SafeSmartAccount(payable(instance(self).safe)).nonce();
+        return ISafeSmartAccount(instance(self).safe).nonce();
     }
 
     function getSafeTxHash(
@@ -99,35 +112,28 @@ library Safe {
         Enum.Operation operation,
         uint256 nonce
     ) internal view returns (bytes32) {
-        return SafeSmartAccount(payable(instance(self).safe)).getTransactionHash(
+        return ISafeSmartAccount(instance(self).safe).getTransactionHash(
             to, value, data, operation, 0, 0, 0, address(0), address(0), nonce
         );
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
-    function proposeTransaction(
-        Client storage self,
-        address to,
-        uint256 value,
-        bytes memory data,
-        Enum.Operation operation,
-        address sender,
-        bytes memory signature,
-        uint256 nonce
-    ) internal {
-        instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "to", to);
-        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "value", value);
-        instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "data", data);
-        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "operation", uint8(operation));
+    function proposeTransaction(Client storage self, ExecTransactionParams memory params) internal {
+        instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "to", params.to);
+        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "value", params.value);
+        instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "data", params.data);
+        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "operation", uint8(params.operation));
         instance(self).requestBody = vm.serializeBytes32(
-            ".proposeTransaction", "contractTransactionHash", getSafeTxHash(self, to, value, data, operation, nonce)
+            ".proposeTransaction",
+            "contractTransactionHash",
+            getSafeTxHash(self, params.to, params.value, params.data, params.operation, params.nonce)
         );
-        instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "sender", sender);
-        instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "signature", signature);
+        instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "sender", params.sender);
+        instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "signature", params.signature);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "safeTxGas", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "baseGas", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
-        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", nonce);
+        instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
         instance(self).http.instance().POST(
             string.concat(
@@ -139,41 +145,36 @@ library Safe {
         ).withBody(instance(self).requestBody).request();
     }
 
-    function proposeTransaction(
-        Client storage self,
-        address to,
-        bytes memory data,
-        Enum.Operation operation,
-        address sender,
-        bytes memory signature
-    ) internal {
-        return proposeTransaction(self, to, 0, data, operation, sender, signature, getNonce(self));
-    }
-
     function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
-        return proposeTransaction(self, to, data, sender, string(""));
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.Call, sender, string("")),
+            nonce: getNonce(self)
+        });
+        return proposeTransaction(self, params);
     }
 
     function proposeTransaction(
         Client storage self,
         address to,
         bytes memory data,
-        Enum.Operation operation,
         address sender,
         string memory derivationPath
     ) internal {
-        bytes memory signature = sign(self, to, data, operation, sender, derivationPath);
-        return proposeTransaction(self, to, 0, data, operation, sender, signature, getNonce(self));
-    }
-
-    function proposeTransaction(
-        Client storage self,
-        address to,
-        bytes memory data,
-        address sender,
-        string memory derivationPath
-    ) internal {
-        return proposeTransaction(self, to, data, Enum.Operation.Call, sender, derivationPath);
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.Call, sender, derivationPath),
+            nonce: getNonce(self)
+        });
+        return proposeTransaction(self, params);
     }
 
     function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
@@ -206,14 +207,32 @@ library Safe {
     ) internal {
         (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         // using DelegateCall to preserve msg.sender across sub-calls
-        return proposeTransaction(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.DelegateCall,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath),
+            nonce: getNonce(self)
+        });
+        return proposeTransaction(self, params);
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
         internal
         returns (bytes memory)
     {
-        return getExecTransactionData(self, to, data, sender, string(""));
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.Call, sender, string("")),
+            nonce: getNonce(self)
+        });
+        return getExecTransactionData(self, params);
     }
 
     function getExecTransactionData(
@@ -223,7 +242,16 @@ library Safe {
         address sender,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        return getExecTransactionData(self, to, data, Enum.Operation.Call, sender, derivationPath);
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.Call, sender, derivationPath),
+            nonce: getNonce(self)
+        });
+        return getExecTransactionData(self, params);
     }
 
     function getExecTransactionsData(
@@ -244,20 +272,26 @@ library Safe {
     ) internal returns (bytes memory) {
         (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         // using DelegateCall to preserve msg.sender across sub-calls
-        return getExecTransactionData(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath);
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.DelegateCall,
+            sender: sender,
+            signature: sign(self, to, data, Enum.Operation.DelegateCall, sender, derivationPath),
+            nonce: getNonce(self)
+        });
+        return getExecTransactionData(self, params);
     }
 
-    function getExecTransactionData(
-        Client storage self,
-        address to,
-        bytes memory data,
-        Enum.Operation operation,
-        address sender,
-        string memory derivationPath
-    ) internal returns (bytes memory) {
-        bytes memory signature = sign(self, to, data, operation, sender, derivationPath);
+    function getExecTransactionData(Client storage, ExecTransactionParams memory params)
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodeCall(
-            SafeSmartAccount.execTransaction, (to, 0, data, operation, 0, 0, 0, address(0), payable(0), signature)
+            ISafeSmartAccount.execTransaction,
+            (params.to, 0, params.data, params.operation, 0, 0, 0, address(0), payable(0), params.signature)
         );
     }
 
