@@ -15,6 +15,11 @@ library Safe {
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
     bytes32 constant SAFE_THRESHOLD_STORAGE_SLOT = bytes32(uint256(4));
 
+    // https://github.com/safe-global/safe-deployments/blob/v1.37.32/src/assets/v1.3.0/multi_send_call_only.json
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_EIP155 = 0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_ZKSYNC = 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F;
+
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
@@ -74,8 +79,29 @@ library Safe {
         i.urls[11155111] = "https://safe-transaction-sepolia.safe.global/api";
         i.urls[1313161554] = "https://safe-transaction-aurora.safe.global/api";
 
-        i.multiSendCallOnly[1] = MultiSendCallOnly(0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
-        i.multiSendCallOnly[8453] = MultiSendCallOnly(0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B);
+        // https://github.com/safe-global/safe-deployments/blob/v1.37.32/src/assets/v1.3.0/multi_send_call_only.json
+        i.multiSendCallOnly[1] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[10] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[56] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[100] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[130] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[137] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[196] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[324] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_ZKSYNC);
+        i.multiSendCallOnly[480] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[1101] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[5000] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[8453] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[42161] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[42220] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[43114] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[59144] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[81457] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[84532] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[534352] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[1313161554] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+
         i.http.initialize().withHeader("Content-Type", "application/json");
         return self;
     }

@@ -36,6 +36,12 @@ function setUp() public {
 safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender);
 ```
 
+If you are using ledger, make sure to pass the derivation path as the last argument:
+
+```solidity
+safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, "m/44'/60'/0'/0/0");
+```
+
 ### Requirements
 
 - Foundry with FFI enabled:
