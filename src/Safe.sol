@@ -144,7 +144,8 @@ library Safe {
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
-    function proposeTransaction(Client storage self, ExecTransactionParams memory params) internal {
+    function proposeTransaction(Client storage self, ExecTransactionParams memory params) internal returns (bytes32) {
+        bytes32 safeTxHash = getSafeTxHash(self, params.to, params.value, params.data, params.operation, params.nonce);
         instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "to", params.to);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "value", params.value);
         instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "data", params.data);
@@ -152,7 +153,7 @@ library Safe {
         instance(self).requestBody = vm.serializeBytes32(
             ".proposeTransaction",
             "contractTransactionHash",
-            getSafeTxHash(self, params.to, params.value, params.data, params.operation, params.nonce)
+            safeTxHash
         );
         instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "sender", params.sender);
         instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "signature", params.signature);
@@ -169,9 +170,10 @@ library Safe {
                 "/multisig-transactions/"
             )
         ).withBody(instance(self).requestBody).request();
+        return safeTxHash;
     }
 
-    function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal {
+    function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal returns (bytes32) {
         ExecTransactionParams memory params = ExecTransactionParams({
             to: to,
             value: 0,
@@ -190,7 +192,7 @@ library Safe {
         bytes memory data,
         address sender,
         string memory derivationPath
-    ) internal {
+    ) internal returns (bytes32) {
         ExecTransactionParams memory params = ExecTransactionParams({
             to: to,
             value: 0,
@@ -230,7 +232,7 @@ library Safe {
         bytes[] memory datas,
         address sender,
         string memory derivationPath
-    ) internal {
+    ) internal returns (bytes32) {
         (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         // using DelegateCall to preserve msg.sender across sub-calls
         ExecTransactionParams memory params = ExecTransactionParams({
