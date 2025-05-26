@@ -150,11 +150,7 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "value", params.value);
         instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "data", params.data);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "operation", uint8(params.operation));
-        instance(self).requestBody = vm.serializeBytes32(
-            ".proposeTransaction",
-            "contractTransactionHash",
-            safeTxHash
-        );
+        instance(self).requestBody = vm.serializeBytes32(".proposeTransaction", "contractTransactionHash", safeTxHash);
         instance(self).requestBody = vm.serializeAddress(".proposeTransaction", "sender", params.sender);
         instance(self).requestBody = vm.serializeBytes(".proposeTransaction", "signature", params.signature);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "safeTxGas", 0);
@@ -173,7 +169,10 @@ library Safe {
         return safeTxHash;
     }
 
-    function proposeTransaction(Client storage self, address to, bytes memory data, address sender) internal returns (bytes32) {
+    function proposeTransaction(Client storage self, address to, bytes memory data, address sender)
+        internal
+        returns (bytes32)
+    {
         ExecTransactionParams memory params = ExecTransactionParams({
             to: to,
             value: 0,
