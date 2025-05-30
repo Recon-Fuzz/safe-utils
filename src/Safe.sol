@@ -359,7 +359,7 @@ library Safe {
             return output;
         } else {
             Signature memory sig;
-            (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
+            (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, operation, nonce));
             return abi.encodePacked(sig.r, sig.s, sig.v);
         }
     }
