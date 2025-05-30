@@ -23,6 +23,7 @@ library Safe {
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
+    error ProposeTransactionFailed(uint256 statusCode, string response);
 
     struct Instance {
         address safe;
@@ -158,7 +159,7 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        instance(self).http.instance().POST(
+        HTTP.Response memory response = instance(self).http.instance().POST(
             string.concat(
                 getApiKitUrl(self, block.chainid),
                 "/v1/safes/",
@@ -166,6 +167,12 @@ library Safe {
                 "/multisig-transactions/"
             )
         ).withBody(instance(self).requestBody).request();
+
+        // The response status should be 2xx, otherwise there was an issue
+        if (response.status < 200 || response.status >= 300) {
+            revert ProposeTransactionFailed(response.status, response.data);
+        }
+
         return safeTxHash;
     }
 
