@@ -168,8 +168,10 @@ library Safe {
             )
         ).withBody(instance(self).requestBody).request();
 
-        // The response status should be 200, otherwise there was an issue
-        if (response.status != 200) revert ProposeTransactionFailed(response.status, response.data);
+        // The response status should be 2xx, otherwise there was an issue
+        if (response.status < 200 || response.status >= 300) {
+            revert ProposeTransactionFailed(response.status, response.data);
+        }
 
         return safeTxHash;
     }
