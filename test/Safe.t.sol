@@ -16,7 +16,9 @@ contract SafeTest is Test {
     bytes32 foundrySigner1PrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     function setUp() public {
-        vm.createSelectFork("https://mainnet.base.org", 28363380);
+        // Note: this was previously set to 28363380, but as the Safe API does not
+        // operate on a specific block, it was throwing an error about the nonce being used already.
+        vm.createSelectFork("https://mainnet.base.org");
         safe.initialize(safeAddress);
     }
 
