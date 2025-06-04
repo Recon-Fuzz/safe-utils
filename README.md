@@ -55,6 +55,10 @@ ffi = true
 
 - All `Recon-Fuzz/solidity-http` dependencies
 
+### Demo
+
+https://github.com/Recon-Fuzz/governance-proposals-done-right
+
 ### Disclaimer
 
 This code is provided "as is" and has not undergone a formal security audit.
