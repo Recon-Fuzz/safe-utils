@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {Vm} from "forge-std/Vm.sol";
-import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
-import {MultiSendCallOnly} from "../lib/safe-smart-account/contracts/libraries/MultiSendCallOnly.sol";
-import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
+import {HTTP} from "solidity-http/HTTP.sol";
+import {MultiSendCallOnly} from "safe-smart-account/libraries/MultiSendCallOnly.sol";
+import {Enum} from "safe-smart-account/common/Enum.sol";
 import {ISafeSmartAccount} from "./ISafeSmartAccount.sol";
 
 library Safe {
