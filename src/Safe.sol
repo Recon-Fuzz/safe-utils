@@ -2,14 +2,15 @@
 pragma solidity ^0.8.13;
 
 import {Vm} from "forge-std/Vm.sol";
-import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
-import {MultiSendCallOnly} from "../lib/safe-smart-account/contracts/libraries/MultiSendCallOnly.sol";
-import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
+import {HTTP} from "solidity-http/HTTP.sol";
+import {MultiSendCallOnly} from "safe-smart-account/libraries/MultiSendCallOnly.sol";
+import {Enum} from "safe-smart-account/common/Enum.sol";
 import {ISafeSmartAccount} from "./ISafeSmartAccount.sol";
 
 library Safe {
     using HTTP for *;
 
+    /// forge-lint: disable-next-line(screaming-snake-case-const)
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
