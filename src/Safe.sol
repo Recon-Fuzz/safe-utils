@@ -10,6 +10,7 @@ import {ISafeSmartAccount} from "./ISafeSmartAccount.sol";
 library Safe {
     using HTTP for *;
 
+    /// forge-lint: disable-next-line(screaming-snake-case-const)
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
