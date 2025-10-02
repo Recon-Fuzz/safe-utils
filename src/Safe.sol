@@ -212,6 +212,35 @@ library Safe {
         return proposeTransaction(self, params);
     }
 
+    /// @notice Propose a transaction with a precomputed signature
+    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process
+    ///
+    /// @param  self        The Safe client
+    /// @param  to          The target address for the transaction
+    /// @param  data        The data payload for the transaction
+    /// @param  sender      The address of the account that is proposing the transaction
+    /// @param  signature   The precomputed signature for the transaction, e.g. using {sign}
+    /// @return txHash      The hash of the proposed Safe transaction
+    function proposeTransactionWithSignature(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address sender,
+        bytes memory signature
+    ) internal returns (bytes32 txHash) {
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: signature,
+            nonce: getNonce(self)
+        });
+        txHash = proposeTransaction(self, params);
+        return txHash;
+    }
+
     function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
         internal
         view
@@ -252,6 +281,37 @@ library Safe {
             nonce: getNonce(self)
         });
         return proposeTransaction(self, params);
+    }
+
+    /// @notice Propose multiple transactions with a precomputed signature
+    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process
+    ///
+    /// @param  self        The Safe client
+    /// @param  targets     The list of target addresses for the transactions
+    /// @param  datas       The list of data payloads for the transactions
+    /// @param  sender      The address of the account that is proposing the transactions
+    /// @param  signature   The precomputed signature for the batch of transactions, e.g. using {sign}
+    /// @return txHash      The hash of the proposed Safe transaction
+    function proposeTransactionsWithSignature(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        bytes memory signature
+    ) internal returns (bytes32 txHash) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        // using DelegateCall to preserve msg.sender across sub-calls
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.DelegateCall,
+            sender: sender,
+            signature: signature,
+            nonce: getNonce(self)
+        });
+        txHash = proposeTransaction(self, params);
+        return txHash;
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
