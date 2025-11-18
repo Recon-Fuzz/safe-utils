@@ -390,15 +390,25 @@ library Safe {
         );
     }
 
+    /// @notice Prepare the signature for a transaction, using a custom nonce
+    ///
+    /// @param  self            The Safe client
+    /// @param  to              The target address for the transaction
+    /// @param  data            The data payload for the transaction
+    /// @param  operation       The operation to perform
+    /// @param  sender          The address of the account that is signing the transaction
+    /// @param  nonce           The nonce of the transaction
+    /// @param  derivationPath  The derivation path for the transaction
+    /// @return signature       The signature for the transaction
     function sign(
         Client storage self,
         address to,
         bytes memory data,
         Enum.Operation operation,
         address sender,
+        uint256 nonce,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        uint256 nonce = getNonce(self);
         if (bytes(derivationPath).length > 0) {
             string[] memory inputs = new string[](8);
             inputs[0] = "cast";
@@ -430,5 +440,17 @@ library Safe {
             (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, operation, nonce));
             return abi.encodePacked(sig.r, sig.s, sig.v);
         }
+    }
+
+    /// @notice Prepare the signature for a transaction, using the nonce from the Safe
+    function sign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
+        return sign(self, to, data, operation, sender, getNonce(self), derivationPath);
     }
 }
