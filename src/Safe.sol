@@ -433,6 +433,7 @@ library Safe {
                 vm.toString(nonce),
                 ',"safeTxGas":"0"},"primaryType":"SafeTx","types":{"SafeTx":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"operation","type":"uint8"},{"name":"safeTxGas","type":"uint256"},{"name":"baseGas","type":"uint256"},{"name":"gasPrice","type":"uint256"},{"name":"gasToken","type":"address"},{"name":"refundReceiver","type":"address"},{"name":"nonce","type":"uint256"}]}}'
             );
+            /// forge-lint: disable-next-line(unsafe-cheatcode)
             bytes memory output = vm.ffi(inputs);
             return output;
         } else {
