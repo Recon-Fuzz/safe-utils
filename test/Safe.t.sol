@@ -35,8 +35,8 @@ contract SafeTest is Test {
 
     function test_Safe_getExecTransactionData() public {
         address weth = 0x4200000000000000000000000000000000000006;
-        bytes memory data =
-            safe.getExecTransactionData(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1, "m/44'/60'/0'/0/0");
+        vm.rememberKey(uint256(foundrySigner1PrivateKey));
+        bytes memory data = safe.getExecTransactionData(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1, "");
         console.logBytes(data);
     }
 }
