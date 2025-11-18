@@ -140,9 +140,8 @@ library Safe {
         Enum.Operation operation,
         uint256 nonce
     ) internal view returns (bytes32) {
-        return ISafeSmartAccount(instance(self).safe).getTransactionHash(
-            to, value, data, operation, 0, 0, 0, address(0), address(0), nonce
-        );
+        return ISafeSmartAccount(instance(self).safe)
+            .getTransactionHash(to, value, data, operation, 0, 0, 0, address(0), address(0), nonce);
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
@@ -160,14 +159,15 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        HTTP.Response memory response = instance(self).http.instance().POST(
-            string.concat(
-                getApiKitUrl(self, block.chainid),
-                "/v1/safes/",
-                vm.toString(instance(self).safe),
-                "/multisig-transactions/"
-            )
-        ).withBody(instance(self).requestBody).request();
+        HTTP.Response memory response = instance(self).http.instance()
+            .POST(
+                string.concat(
+                    getApiKitUrl(self, block.chainid),
+                    "/v1/safes/",
+                    vm.toString(instance(self).safe),
+                    "/multisig-transactions/"
+                )
+            ).withBody(instance(self).requestBody).request();
 
         // The response status should be 2xx, otherwise there was an issue
         if (response.status < 200 || response.status >= 300) {
@@ -390,15 +390,25 @@ library Safe {
         );
     }
 
+    /// @notice Prepare the signature for a transaction, using a custom nonce
+    ///
+    /// @param  self            The Safe client
+    /// @param  to              The target address for the transaction
+    /// @param  data            The data payload for the transaction
+    /// @param  operation       The operation to perform
+    /// @param  sender          The address of the account that is signing the transaction
+    /// @param  nonce           The nonce of the transaction
+    /// @param  derivationPath  The derivation path for the transaction
+    /// @return signature       The signature for the transaction
     function sign(
         Client storage self,
         address to,
         bytes memory data,
         Enum.Operation operation,
         address sender,
+        uint256 nonce,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        uint256 nonce = getNonce(self);
         if (bytes(derivationPath).length > 0) {
             string[] memory inputs = new string[](8);
             inputs[0] = "cast";
@@ -423,6 +433,7 @@ library Safe {
                 vm.toString(nonce),
                 ',"safeTxGas":"0"},"primaryType":"SafeTx","types":{"SafeTx":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"operation","type":"uint8"},{"name":"safeTxGas","type":"uint256"},{"name":"baseGas","type":"uint256"},{"name":"gasPrice","type":"uint256"},{"name":"gasToken","type":"address"},{"name":"refundReceiver","type":"address"},{"name":"nonce","type":"uint256"}]}}'
             );
+            /// forge-lint: disable-next-line(unsafe-cheatcode)
             bytes memory output = vm.ffi(inputs);
             return output;
         } else {
@@ -430,5 +441,17 @@ library Safe {
             (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, operation, nonce));
             return abi.encodePacked(sig.r, sig.s, sig.v);
         }
+    }
+
+    /// @notice Prepare the signature for a transaction, using the nonce from the Safe
+    function sign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
+        return sign(self, to, data, operation, sender, getNonce(self), derivationPath);
     }
 }
