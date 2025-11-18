@@ -140,9 +140,8 @@ library Safe {
         Enum.Operation operation,
         uint256 nonce
     ) internal view returns (bytes32) {
-        return ISafeSmartAccount(instance(self).safe).getTransactionHash(
-            to, value, data, operation, 0, 0, 0, address(0), address(0), nonce
-        );
+        return ISafeSmartAccount(instance(self).safe)
+            .getTransactionHash(to, value, data, operation, 0, 0, 0, address(0), address(0), nonce);
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
@@ -160,14 +159,15 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        HTTP.Response memory response = instance(self).http.instance().POST(
-            string.concat(
-                getApiKitUrl(self, block.chainid),
-                "/v1/safes/",
-                vm.toString(instance(self).safe),
-                "/multisig-transactions/"
-            )
-        ).withBody(instance(self).requestBody).request();
+        HTTP.Response memory response = instance(self).http.instance()
+            .POST(
+                string.concat(
+                    getApiKitUrl(self, block.chainid),
+                    "/v1/safes/",
+                    vm.toString(instance(self).safe),
+                    "/multisig-transactions/"
+                )
+            ).withBody(instance(self).requestBody).request();
 
         // The response status should be 2xx, otherwise there was an issue
         if (response.status < 200 || response.status >= 300) {
