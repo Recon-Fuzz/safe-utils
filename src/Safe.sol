@@ -58,7 +58,7 @@ library Safe {
         self.instances.push();
         Instance storage i = self.instances[self.instances.length - 1];
         i.safe = safe;
-        // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/utils/config.ts
+        // https://github.com/safe-global/safe-core-sdk/blob/4d89cb9b1559e4349c323a48a10caf685f7f8c88/packages/api-kit/src/utils/config.ts
         i.urls[1] = "https://api.safe.global/tx-service/eth/api";
         i.urls[10] = "https://api.safe.global/tx-service/oeth/api";
         i.urls[56] = "https://api.safe.global/tx-service/bnb/api";
@@ -75,7 +75,6 @@ library Safe {
         i.urls[42220] = "https://api.safe.global/tx-service/celo/api";
         i.urls[43114] = "https://api.safe.global/tx-service/avax/api";
         i.urls[59144] = "https://api.safe.global/tx-service/linea/api";
-        i.urls[81457] = "https://api.safe.global/tx-service/blastmainnet/api";
         i.urls[84532] = "https://api.safe.global/tx-service/basesep/api";
         i.urls[534352] = "https://api.safe.global/tx-service/scr/api";
         i.urls[11155111] = "https://api.safe.global/tx-service/sep/api";
@@ -98,7 +97,6 @@ library Safe {
         i.multiSendCallOnly[42220] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[43114] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[59144] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[81457] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[84532] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[534352] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
