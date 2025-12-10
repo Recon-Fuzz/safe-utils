@@ -58,6 +58,45 @@ The second step is to take the value for the returned `bytes` and provide them w
 safe.proposeTransactionWithSignature(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, signature);
 ```
 
+#### Batch transactions
+
+For proposing multiple transactions together, use `proposeTransactions`:
+
+```solidity
+address[] memory targets = new address[](2);
+bytes[] memory datas = new bytes[](2);
+
+targets[0] = address(contract1);
+datas[0] = abi.encodeCall(Contract1.someFunction, ());
+
+targets[1] = address(contract2);
+datas[1] = abi.encodeCall(Contract2.anotherFunction, ());
+
+safe.proposeTransactions(targets, datas, sender, "m/44'/60'/0'/0/0");
+```
+
+If you need to pre-compute the signature for batch transactions (e.g., when using a Ledger), you must:
+
+1. Get the target and data for the batch transaction using `getProposeTransactionsTargetAndData`:
+
+```solidity
+(address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
+```
+
+2. Sign the transaction with `Enum.Operation.DelegateCall` (not `Call`):
+
+```solidity
+bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender, "m/44'/60'/0'/0/0");
+```
+
+3. Propose the transactions with the signature:
+
+```solidity
+safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
+```
+
+**Important**: Batch transactions use `DelegateCall` operation to preserve `msg.sender` across sub-calls. Make sure to sign with `Enum.Operation.DelegateCall`, not `Enum.Operation.Call`.
+
 ### Requirements
 
 - Foundry with FFI enabled:
