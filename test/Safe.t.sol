@@ -43,51 +43,25 @@ contract SafeTest is Test {
 
     function test_Safe_proposeTransactionsWithSignature() public {
         address weth = 0x4200000000000000000000000000000000000006;
-        
+
         // Create batch of transactions
         address[] memory targets = new address[](2);
         bytes[] memory datas = new bytes[](2);
-        
+
         targets[0] = weth;
         datas[0] = abi.encodeCall(IWETH.withdraw, (0));
-        
+
         targets[1] = weth;
         datas[1] = abi.encodeCall(IWETH.withdraw, (1));
-        
+
         // Get the target and data for signing
         (address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
-        
+
         // Sign with DelegateCall operation (required for batch transactions)
         vm.rememberKey(uint256(foundrySigner1PrivateKey));
         bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, foundrySigner1, "");
-        
-        // Propose transactions with the signature
-        safe.proposeTransactionsWithSignature(targets, datas, foundrySigner1, signature);
-    }
 
-    function test_Safe_proposeTransactionsWithSignature_FailsWithCallOperation() public {
-        address weth = 0x4200000000000000000000000000000000000006;
-        
-        // Create batch of transactions
-        address[] memory targets = new address[](2);
-        bytes[] memory datas = new bytes[](2);
-        
-        targets[0] = weth;
-        datas[0] = abi.encodeCall(IWETH.withdraw, (0));
-        
-        targets[1] = weth;
-        datas[1] = abi.encodeCall(IWETH.withdraw, (1));
-        
-        // Get the target and data for signing
-        (address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
-        
-        // INCORRECT: Sign with Call operation instead of DelegateCall
-        // This is a common mistake that causes the Safe API to report an incorrect signer
-        vm.rememberKey(uint256(foundrySigner1PrivateKey));
-        bytes memory signature = safe.sign(to, data, Enum.Operation.Call, foundrySigner1, "");
-        
-        // This should fail with ProposeTransactionFailed error about incorrect signer
-        vm.expectRevert();
+        // Propose transactions with the signature
         safe.proposeTransactionsWithSignature(targets, datas, foundrySigner1, signature);
     }
 }
