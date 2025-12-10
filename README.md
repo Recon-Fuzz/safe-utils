@@ -83,7 +83,7 @@ If you need to pre-compute the signature for batch transactions (e.g., when usin
 (address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
 ```
 
-2. Sign the transaction with `Enum.Operation.DelegateCall` (not `Call`):
+2. Sign the transaction with `Enum.Operation.DelegateCall` (**NOT** `Call`):
 
 ```solidity
 bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender, "m/44'/60'/0'/0/0");
@@ -95,7 +95,23 @@ bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender
 safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 ```
 
-**Important**: Batch transactions use `DelegateCall` operation to preserve `msg.sender` across sub-calls. Make sure to sign with `Enum.Operation.DelegateCall`, not `Enum.Operation.Call`.
+**⚠️ CRITICAL**: Batch transactions **MUST** use `Enum.Operation.DelegateCall` to preserve `msg.sender` across sub-calls. 
+
+**Common Mistake**: If you sign with `Enum.Operation.Call` instead of `DelegateCall`, the Safe API will reject your transaction with an error about an incorrect signer address. The signer address reported in the error will not match your actual signing address because the signature will be invalid.
+
+**Correct usage**:
+```solidity
+// ✓ CORRECT - Use DelegateCall for batch transactions
+bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender, derivationPath);
+safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
+```
+
+**Incorrect usage**:
+```solidity
+// ✗ WRONG - Using Call instead of DelegateCall will cause signature validation to fail
+bytes memory signature = safe.sign(to, data, Enum.Operation.Call, sender, derivationPath);
+safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
+```
 
 ### Requirements
 
