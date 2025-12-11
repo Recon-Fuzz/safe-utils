@@ -282,13 +282,21 @@ library Safe {
     }
 
     /// @notice Propose multiple transactions with a precomputed signature
-    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process
+    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process.
+    ///         The signature must be created with Enum.Operation.DelegateCall, as batch transactions use
+    ///         DelegateCall to preserve msg.sender across sub-calls.
+    ///
+    ///         WARNING: Using Enum.Operation.Call instead of DelegateCall will cause the Safe API to reject
+    ///         your transaction with an error about an incorrect signer address. The signature will be invalid
+    ///         because it was signed with the wrong operation type.
     ///
     /// @param  self        The Safe client
     /// @param  targets     The list of target addresses for the transactions
     /// @param  datas       The list of data payloads for the transactions
     /// @param  sender      The address of the account that is proposing the transactions
-    /// @param  signature   The precomputed signature for the batch of transactions, e.g. using {sign}
+    /// @param  signature   The precomputed signature for the batch of transactions. MUST be signed with
+    ///                     Enum.Operation.DelegateCall (use {sign} with DelegateCall operation).
+    ///                     Signing with Call instead of DelegateCall will result in signature validation failure.
     /// @return txHash      The hash of the proposed Safe transaction
     function proposeTransactionsWithSignature(
         Client storage self,

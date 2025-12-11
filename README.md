@@ -58,6 +58,22 @@ The second step is to take the value for the returned `bytes` and provide them w
 safe.proposeTransactionWithSignature(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, signature);
 ```
 
+#### Batch transactions
+
+```solidity
+safe.proposeTransactions(targets, datas, sender, "m/44'/60'/0'/0/0");
+```
+
+For pre-computed signatures with hardware wallets:
+
+```solidity
+(address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
+bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender, "m/44'/60'/0'/0/0");
+safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
+```
+
+**⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
+
 ### Requirements
 
 - Foundry with FFI enabled:

@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {Safe} from "../src/Safe.sol";
 import {strings} from "solidity-stringutils/strings.sol";
 import {IWETH} from "./interfaces/IWETH.sol";
+import {Enum} from "safe-smart-account/common/Enum.sol";
 
 contract SafeTest is Test {
     using Safe for *;
@@ -38,5 +39,29 @@ contract SafeTest is Test {
         vm.rememberKey(uint256(foundrySigner1PrivateKey));
         bytes memory data = safe.getExecTransactionData(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1, "");
         console.logBytes(data);
+    }
+
+    function test_Safe_proposeTransactionsWithSignature() public {
+        address weth = 0x4200000000000000000000000000000000000006;
+
+        // Create batch of transactions
+        address[] memory targets = new address[](2);
+        bytes[] memory datas = new bytes[](2);
+
+        targets[0] = weth;
+        datas[0] = abi.encodeCall(IWETH.withdraw, (0));
+
+        targets[1] = weth;
+        datas[1] = abi.encodeCall(IWETH.withdraw, (1));
+
+        // Get the target and data for signing
+        (address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
+
+        // Sign with DelegateCall operation (required for batch transactions)
+        vm.rememberKey(uint256(foundrySigner1PrivateKey));
+        bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, foundrySigner1, "");
+
+        // Propose transactions with the signature
+        safe.proposeTransactionsWithSignature(targets, datas, foundrySigner1, signature);
     }
 }
