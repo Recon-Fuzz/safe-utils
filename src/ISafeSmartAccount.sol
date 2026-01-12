@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
+import {Enum} from "safe-smart-account/common/Enum.sol";
 
 interface ISafeSmartAccount {
     function nonce() external view returns (uint256);

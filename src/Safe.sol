@@ -2,14 +2,15 @@
 pragma solidity ^0.8.13;
 
 import {Vm} from "forge-std/Vm.sol";
-import {HTTP} from "../lib/solidity-http/src/HTTP.sol";
-import {MultiSendCallOnly} from "../lib/safe-smart-account/contracts/libraries/MultiSendCallOnly.sol";
-import {Enum} from "../lib/safe-smart-account/contracts/common/Enum.sol";
+import {HTTP} from "solidity-http/HTTP.sol";
+import {MultiSendCallOnly} from "safe-smart-account/libraries/MultiSendCallOnly.sol";
+import {Enum} from "safe-smart-account/common/Enum.sol";
 import {ISafeSmartAccount} from "./ISafeSmartAccount.sol";
 
 library Safe {
     using HTTP for *;
 
+    /// forge-lint: disable-next-line(screaming-snake-case-const)
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
@@ -23,6 +24,7 @@ library Safe {
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
+    error ProposeTransactionFailed(uint256 statusCode, string response);
 
     struct Instance {
         address safe;
@@ -56,28 +58,27 @@ library Safe {
         self.instances.push();
         Instance storage i = self.instances[self.instances.length - 1];
         i.safe = safe;
-        // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/utils/config.ts
-        i.urls[1] = "https://safe-transaction-mainnet.safe.global/api";
-        i.urls[10] = "https://safe-transaction-optimism.safe.global/api";
-        i.urls[56] = "https://safe-transaction-bsc.safe.global/api";
-        i.urls[100] = "https://safe-transaction-gnosis-chain.safe.global/api";
-        i.urls[130] = "https://safe-transaction-unichain.safe.global/api";
-        i.urls[137] = "https://safe-transaction-polygon.safe.global/api";
-        i.urls[196] = "https://safe-transaction-xlayer.safe.global/api";
-        i.urls[324] = "https://safe-transaction-zksync.safe.global/api";
-        i.urls[480] = "https://safe-transaction-worldchain.safe.global/api";
-        i.urls[1101] = "https://safe-transaction-zkevm.safe.global/api";
-        i.urls[5000] = "https://safe-transaction-mantle.safe.global/api";
-        i.urls[8453] = "https://safe-transaction-base.safe.global/api";
-        i.urls[42161] = "https://safe-transaction-arbitrum.safe.global/api";
-        i.urls[42220] = "https://safe-transaction-celo.safe.global/api";
-        i.urls[43114] = "https://safe-transaction-avalanche.safe.global/api";
-        i.urls[59144] = "https://safe-transaction-linea.safe.global/api";
-        i.urls[81457] = "https://safe-transaction-blast.safe.global/api";
-        i.urls[84532] = "https://safe-transaction-base-sepolia.safe.global/api";
-        i.urls[534352] = "https://safe-transaction-scroll.safe.global/api";
-        i.urls[11155111] = "https://safe-transaction-sepolia.safe.global/api";
-        i.urls[1313161554] = "https://safe-transaction-aurora.safe.global/api";
+        // https://github.com/safe-global/safe-core-sdk/blob/4d89cb9b1559e4349c323a48a10caf685f7f8c88/packages/api-kit/src/utils/config.ts
+        i.urls[1] = "https://api.safe.global/tx-service/eth/api";
+        i.urls[10] = "https://api.safe.global/tx-service/oeth/api";
+        i.urls[56] = "https://api.safe.global/tx-service/bnb/api";
+        i.urls[100] = "https://api.safe.global/tx-service/gno/api";
+        i.urls[130] = "https://api.safe.global/tx-service/unichain/api";
+        i.urls[137] = "https://api.safe.global/tx-service/pol/api";
+        i.urls[196] = "https://api.safe.global/tx-service/okb/api";
+        i.urls[324] = "https://api.safe.global/tx-service/zksync/api";
+        i.urls[480] = "https://api.safe.global/tx-service/wc/api";
+        i.urls[1101] = "https://api.safe.global/tx-service/zkevm/api";
+        i.urls[5000] = "https://api.safe.global/tx-service/mantle/api";
+        i.urls[8453] = "https://api.safe.global/tx-service/base/api";
+        i.urls[42161] = "https://api.safe.global/tx-service/arb1/api";
+        i.urls[42220] = "https://api.safe.global/tx-service/celo/api";
+        i.urls[43114] = "https://api.safe.global/tx-service/avax/api";
+        i.urls[59144] = "https://api.safe.global/tx-service/linea/api";
+        i.urls[84532] = "https://api.safe.global/tx-service/basesep/api";
+        i.urls[534352] = "https://api.safe.global/tx-service/scr/api";
+        i.urls[11155111] = "https://api.safe.global/tx-service/sep/api";
+        i.urls[1313161554] = "https://api.safe.global/tx-service/aurora/api";
 
         // https://github.com/safe-global/safe-deployments/blob/v1.37.32/src/assets/v1.3.0/multi_send_call_only.json
         i.multiSendCallOnly[1] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
@@ -96,7 +97,6 @@ library Safe {
         i.multiSendCallOnly[42220] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[43114] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[59144] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[81457] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[84532] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[534352] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
@@ -138,9 +138,8 @@ library Safe {
         Enum.Operation operation,
         uint256 nonce
     ) internal view returns (bytes32) {
-        return ISafeSmartAccount(instance(self).safe).getTransactionHash(
-            to, value, data, operation, 0, 0, 0, address(0), address(0), nonce
-        );
+        return ISafeSmartAccount(instance(self).safe)
+            .getTransactionHash(to, value, data, operation, 0, 0, 0, address(0), address(0), nonce);
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
@@ -158,14 +157,21 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        instance(self).http.instance().POST(
-            string.concat(
-                getApiKitUrl(self, block.chainid),
-                "/v1/safes/",
-                vm.toString(instance(self).safe),
-                "/multisig-transactions/"
-            )
-        ).withBody(instance(self).requestBody).request();
+        HTTP.Response memory response = instance(self).http.instance()
+            .POST(
+                string.concat(
+                    getApiKitUrl(self, block.chainid),
+                    "/v1/safes/",
+                    vm.toString(instance(self).safe),
+                    "/multisig-transactions/"
+                )
+            ).withBody(instance(self).requestBody).request();
+
+        // The response status should be 2xx, otherwise there was an issue
+        if (response.status < 200 || response.status >= 300) {
+            revert ProposeTransactionFailed(response.status, response.data);
+        }
+
         return safeTxHash;
     }
 
@@ -202,6 +208,35 @@ library Safe {
             nonce: getNonce(self)
         });
         return proposeTransaction(self, params);
+    }
+
+    /// @notice Propose a transaction with a precomputed signature
+    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process
+    ///
+    /// @param  self        The Safe client
+    /// @param  to          The target address for the transaction
+    /// @param  data        The data payload for the transaction
+    /// @param  sender      The address of the account that is proposing the transaction
+    /// @param  signature   The precomputed signature for the transaction, e.g. using {sign}
+    /// @return txHash      The hash of the proposed Safe transaction
+    function proposeTransactionWithSignature(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address sender,
+        bytes memory signature
+    ) internal returns (bytes32 txHash) {
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.Call,
+            sender: sender,
+            signature: signature,
+            nonce: getNonce(self)
+        });
+        txHash = proposeTransaction(self, params);
+        return txHash;
     }
 
     function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
@@ -244,6 +279,45 @@ library Safe {
             nonce: getNonce(self)
         });
         return proposeTransaction(self, params);
+    }
+
+    /// @notice Propose multiple transactions with a precomputed signature
+    /// @dev    This can be used to propose transactions signed with a hardware wallet in a two-step process.
+    ///         The signature must be created with Enum.Operation.DelegateCall, as batch transactions use
+    ///         DelegateCall to preserve msg.sender across sub-calls.
+    ///
+    ///         WARNING: Using Enum.Operation.Call instead of DelegateCall will cause the Safe API to reject
+    ///         your transaction with an error about an incorrect signer address. The signature will be invalid
+    ///         because it was signed with the wrong operation type.
+    ///
+    /// @param  self        The Safe client
+    /// @param  targets     The list of target addresses for the transactions
+    /// @param  datas       The list of data payloads for the transactions
+    /// @param  sender      The address of the account that is proposing the transactions
+    /// @param  signature   The precomputed signature for the batch of transactions. MUST be signed with
+    ///                     Enum.Operation.DelegateCall (use {sign} with DelegateCall operation).
+    ///                     Signing with Call instead of DelegateCall will result in signature validation failure.
+    /// @return txHash      The hash of the proposed Safe transaction
+    function proposeTransactionsWithSignature(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        bytes memory signature
+    ) internal returns (bytes32 txHash) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        // using DelegateCall to preserve msg.sender across sub-calls
+        ExecTransactionParams memory params = ExecTransactionParams({
+            to: to,
+            value: 0,
+            data: data,
+            operation: Enum.Operation.DelegateCall,
+            sender: sender,
+            signature: signature,
+            nonce: getNonce(self)
+        });
+        txHash = proposeTransaction(self, params);
+        return txHash;
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
@@ -322,15 +396,25 @@ library Safe {
         );
     }
 
+    /// @notice Prepare the signature for a transaction, using a custom nonce
+    ///
+    /// @param  self            The Safe client
+    /// @param  to              The target address for the transaction
+    /// @param  data            The data payload for the transaction
+    /// @param  operation       The operation to perform
+    /// @param  sender          The address of the account that is signing the transaction
+    /// @param  nonce           The nonce of the transaction
+    /// @param  derivationPath  The derivation path for the transaction
+    /// @return signature       The signature for the transaction
     function sign(
         Client storage self,
         address to,
         bytes memory data,
         Enum.Operation operation,
         address sender,
+        uint256 nonce,
         string memory derivationPath
     ) internal returns (bytes memory) {
-        uint256 nonce = getNonce(self);
         if (bytes(derivationPath).length > 0) {
             string[] memory inputs = new string[](8);
             inputs[0] = "cast";
@@ -355,12 +439,25 @@ library Safe {
                 vm.toString(nonce),
                 ',"safeTxGas":"0"},"primaryType":"SafeTx","types":{"SafeTx":[{"name":"to","type":"address"},{"name":"value","type":"uint256"},{"name":"data","type":"bytes"},{"name":"operation","type":"uint8"},{"name":"safeTxGas","type":"uint256"},{"name":"baseGas","type":"uint256"},{"name":"gasPrice","type":"uint256"},{"name":"gasToken","type":"address"},{"name":"refundReceiver","type":"address"},{"name":"nonce","type":"uint256"}]}}'
             );
+            /// forge-lint: disable-next-line(unsafe-cheatcode)
             bytes memory output = vm.ffi(inputs);
             return output;
         } else {
             Signature memory sig;
-            (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce));
+            (sig.v, sig.r, sig.s) = vm.sign(sender, getSafeTxHash(self, to, 0, data, operation, nonce));
             return abi.encodePacked(sig.r, sig.s, sig.v);
         }
+    }
+
+    /// @notice Prepare the signature for a transaction, using the nonce from the Safe
+    function sign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender,
+        string memory derivationPath
+    ) internal returns (bytes memory) {
+        return sign(self, to, data, operation, sender, getNonce(self), derivationPath);
     }
 }

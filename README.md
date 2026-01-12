@@ -42,6 +42,38 @@ If you are using ledger, make sure to pass the derivation path as the last argum
 safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, "m/44'/60'/0'/0/0");
 ```
 
+Proposing a transaction/transactions using a Ledger will also require pre-computing the signature, due to a (current) limitation with forge.
+
+The first step is to pre-compute the signature:
+
+```solidity
+bytes memory signature = safe.sign(weth, abi.encodeCall(IWETH.withdraw, (0)), Enum.Operation.Call, sender, "m/44'/60'/0'/0/0");
+```
+
+Note that this call will fail if `forge script` is called with the `--ledger` flag, as that would block this library's contracts from utilising the same device. Instead, pass the Ledger derivation path as an argument to the script.
+
+The second step is to take the value for the returned `bytes` and provide them when proposing the transaction:
+
+```solidity
+safe.proposeTransactionWithSignature(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, signature);
+```
+
+#### Batch transactions
+
+```solidity
+safe.proposeTransactions(targets, datas, sender, "m/44'/60'/0'/0/0");
+```
+
+For pre-computed signatures with hardware wallets:
+
+```solidity
+(address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
+bytes memory signature = safe.sign(to, data, Enum.Operation.DelegateCall, sender, "m/44'/60'/0'/0/0");
+safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
+```
+
+**⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
+
 ### Requirements
 
 - Foundry with FFI enabled:
@@ -54,6 +86,10 @@ ffi = true
 ```
 
 - All `Recon-Fuzz/solidity-http` dependencies
+
+### Demo
+
+https://github.com/Recon-Fuzz/governance-proposals-done-right
 
 ### Disclaimer
 

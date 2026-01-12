@@ -1,0 +1,3 @@
+safe-smart-account/=lib/safe-smart-account/contracts/
+solidity-http/=lib/solidity-http/src/
+solidity-stringutils/=lib/solidity-stringutils/src/
