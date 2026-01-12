@@ -1,0 +1,14 @@
+{
+  "lib/forge-std": {
+    "rev": "3b20d60d14b343ee4f908cb8079495c07f5e8981"
+  },
+  "lib/safe-smart-account": {
+    "rev": "bf943f80fec5ac647159d26161446ac5d716a294"
+  },
+  "lib/solidity-http": {
+    "rev": "c1bdafefa34e4a5e581f4227dfed4efecc0d6d0e"
+  },
+  "lib/solidity-stringutils": {
+    "rev": "4b2fcc43fa0426e19ce88b1f1ec16f5903a2e461"
+  }
+}
