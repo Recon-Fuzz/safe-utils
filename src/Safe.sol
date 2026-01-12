@@ -102,7 +102,7 @@ library Safe {
         i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[1313161554] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
 
-        i.http.initialize().withHeader("Content-Type", "application/json");
+        i.http.initialize().withHeader("Content-Type", "application/json").withFollowRedirects(true);
         return self;
     }
 
