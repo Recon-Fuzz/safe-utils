@@ -68,6 +68,7 @@ library Safe {
         i.urls[196] = "https://api.safe.global/tx-service/okb/api";
         i.urls[324] = "https://api.safe.global/tx-service/zksync/api";
         i.urls[480] = "https://api.safe.global/tx-service/wc/api";
+        i.urls[999] = "https://api.safe.global/tx-service/hyper/api";
         i.urls[1101] = "https://api.safe.global/tx-service/zkevm/api";
         i.urls[5000] = "https://api.safe.global/tx-service/mantle/api";
         i.urls[8453] = "https://api.safe.global/tx-service/base/api";
@@ -90,6 +91,7 @@ library Safe {
         i.multiSendCallOnly[196] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[324] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_ZKSYNC);
         i.multiSendCallOnly[480] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[999] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[1101] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[5000] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[8453] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
