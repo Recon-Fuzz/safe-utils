@@ -87,6 +87,14 @@ ffi = true
 
 - All `Recon-Fuzz/solidity-http` dependencies
 
+### Third-party integrations
+
+The following blockchains are integrated via third party APIs and not the official safe.global tx service:
+
+| Blockchain | Provider |
+| --- | --- |
+| [Plume](https://plume.org/) | [OnChainDen](https://onchainden.com/) |
+
 ### Demo
 
 https://github.com/Recon-Fuzz/governance-proposals-done-right
