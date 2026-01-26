@@ -77,6 +77,7 @@ library Safe {
         i.urls[43114] = "https://api.safe.global/tx-service/avax/api";
         i.urls[59144] = "https://api.safe.global/tx-service/linea/api";
         i.urls[84532] = "https://api.safe.global/tx-service/basesep/api";
+        i.urls[98866] = "https://safe-transaction-plume.onchainden.com/api";
         i.urls[534352] = "https://api.safe.global/tx-service/scr/api";
         i.urls[11155111] = "https://api.safe.global/tx-service/sep/api";
         i.urls[1313161554] = "https://api.safe.global/tx-service/aurora/api";
@@ -100,6 +101,7 @@ library Safe {
         i.multiSendCallOnly[43114] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[59144] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[84532] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
+        i.multiSendCallOnly[98866] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[534352] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
         i.multiSendCallOnly[1313161554] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
