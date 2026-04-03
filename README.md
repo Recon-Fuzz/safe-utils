@@ -2,9 +2,6 @@
 
 Interact with the [Safe API](https://docs.safe.global/sdk/api-kit) from Foundry scripts.
 
-Official transaction service URLs mirror the latest `safe-core-sdk` `packages/api-kit/src/utils/config.ts` network list.
-Third-party integrations are kept in a separate override layer so provider-specific endpoints stay isolated and easier to review.
-
 ### Installation
 
 ```bash
