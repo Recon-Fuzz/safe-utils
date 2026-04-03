@@ -12,14 +12,18 @@ library Safe {
 
     /// forge-lint: disable-next-line(screaming-snake-case-const)
     Vm constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
+    string constant SAFE_TRANSACTION_SERVICE_BASE_URL = "https://api.safe.global/tx-service";
+    string constant PLUME_TRANSACTION_SERVICE_URL = "https://safe-transaction-plume.onchainden.com/api";
 
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
     bytes32 constant SAFE_THRESHOLD_STORAGE_SLOT = bytes32(uint256(4));
 
-    // https://github.com/safe-global/safe-deployments/blob/v1.37.32/src/assets/v1.3.0/multi_send_call_only.json
-    address constant MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
-    address constant MULTI_SEND_CALL_ONLY_ADDRESS_EIP155 = 0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B;
-    address constant MULTI_SEND_CALL_ONLY_ADDRESS_ZKSYNC = 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F;
+    // https://github.com/safe-global/safe-deployments/blob/c6a2025fca317b629d73d24b472c266418e2a4d6/src/assets/v1.3.0/multi_send_call_only.json
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC = 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F;
+    // https://github.com/safe-global/safe-deployments/blob/c6a2025fca317b629d73d24b472c266418e2a4d6/src/assets/v1.4.1/multi_send_call_only.json
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL = 0x9641d764fc13c8B624c04430C7356C1C7C8102e2;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC = 0x0408EF011960d02349d50286D20531229BCef773;
 
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
@@ -29,8 +33,6 @@ library Safe {
     struct Instance {
         address safe;
         HTTP.Client http;
-        mapping(uint256 chainId => string) urls;
-        mapping(uint256 chainId => MultiSendCallOnly) multiSendCallOnly;
         string requestBody;
     }
 
@@ -58,54 +60,6 @@ library Safe {
         self.instances.push();
         Instance storage i = self.instances[self.instances.length - 1];
         i.safe = safe;
-        // https://github.com/safe-global/safe-core-sdk/blob/4d89cb9b1559e4349c323a48a10caf685f7f8c88/packages/api-kit/src/utils/config.ts
-        i.urls[1] = "https://api.safe.global/tx-service/eth/api";
-        i.urls[10] = "https://api.safe.global/tx-service/oeth/api";
-        i.urls[56] = "https://api.safe.global/tx-service/bnb/api";
-        i.urls[100] = "https://api.safe.global/tx-service/gno/api";
-        i.urls[130] = "https://api.safe.global/tx-service/unichain/api";
-        i.urls[137] = "https://api.safe.global/tx-service/pol/api";
-        i.urls[196] = "https://api.safe.global/tx-service/okb/api";
-        i.urls[324] = "https://api.safe.global/tx-service/zksync/api";
-        i.urls[480] = "https://api.safe.global/tx-service/wc/api";
-        i.urls[999] = "https://api.safe.global/tx-service/hyper/api";
-        i.urls[1101] = "https://api.safe.global/tx-service/zkevm/api";
-        i.urls[5000] = "https://api.safe.global/tx-service/mantle/api";
-        i.urls[8453] = "https://api.safe.global/tx-service/base/api";
-        i.urls[42161] = "https://api.safe.global/tx-service/arb1/api";
-        i.urls[42220] = "https://api.safe.global/tx-service/celo/api";
-        i.urls[43114] = "https://api.safe.global/tx-service/avax/api";
-        i.urls[59144] = "https://api.safe.global/tx-service/linea/api";
-        i.urls[84532] = "https://api.safe.global/tx-service/basesep/api";
-        i.urls[98866] = "https://safe-transaction-plume.onchainden.com/api";
-        i.urls[534352] = "https://api.safe.global/tx-service/scr/api";
-        i.urls[11155111] = "https://api.safe.global/tx-service/sep/api";
-        i.urls[1313161554] = "https://api.safe.global/tx-service/aurora/api";
-
-        // https://github.com/safe-global/safe-deployments/blob/v1.37.32/src/assets/v1.3.0/multi_send_call_only.json
-        i.multiSendCallOnly[1] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[10] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[56] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[100] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[130] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[137] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[196] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[324] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_ZKSYNC);
-        i.multiSendCallOnly[480] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[999] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[1101] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[5000] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[8453] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[42161] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[42220] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[43114] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[59144] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[84532] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[98866] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[534352] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[11155111] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-        i.multiSendCallOnly[1313161554] = MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_CANONICAL);
-
         i.http.initialize().withHeader("Content-Type", "application/json").withFollowRedirects(true);
         return self;
     }
@@ -114,20 +68,116 @@ library Safe {
         return self.instances[self.instances.length - 1];
     }
 
-    function getApiKitUrl(Client storage self, uint256 chainId) internal view returns (string memory) {
-        string memory url = instance(self).urls[chainId];
-        if (bytes(url).length == 0) {
-            revert ApiKitUrlNotFound(chainId);
+    function getApiKitUrl(Client storage, uint256 chainId) internal pure returns (string memory) {
+        string memory thirdPartyApiKitUrl = getThirdPartyApiKitUrl(chainId);
+        if (bytes(thirdPartyApiKitUrl).length > 0) {
+            return thirdPartyApiKitUrl;
         }
-        return url;
+
+        return getTransactionServiceUrl(chainId);
     }
 
-    function getMultiSendCallOnly(Client storage self, uint256 chainId) internal view returns (MultiSendCallOnly) {
-        MultiSendCallOnly multiSendCallOnly = instance(self).multiSendCallOnly[chainId];
-        if (address(multiSendCallOnly) == address(0)) {
+    // Mirrors safe-global/safe-core-sdk/packages/api-kit/src/utils/config.ts on main.
+    function getNetworkShortName(uint256 chainId) internal pure returns (string memory) {
+        if (chainId == 1) return "eth";
+        if (chainId == 10) return "oeth";
+        if (chainId == 50) return "xdc";
+        if (chainId == 56) return "bnb";
+        if (chainId == 100) return "gno";
+        if (chainId == 130) return "unichain";
+        if (chainId == 137) return "pol";
+        if (chainId == 143) return "monad";
+        if (chainId == 146) return "sonic";
+        if (chainId == 196) return "okb";
+        if (chainId == 204) return "opbnb";
+        if (chainId == 232) return "lens";
+        if (chainId == 324) return "zksync";
+        if (chainId == 480) return "wc";
+        if (chainId == 988) return "stable";
+        if (chainId == 999) return "hyper";
+        if (chainId == 1101) return "zkevm";
+        if (chainId == 3338) return "peaq";
+        if (chainId == 3637) return "btc";
+        if (chainId == 5000) return "mantle";
+        if (chainId == 8453) return "base";
+        if (chainId == 9745) return "plasma";
+        if (chainId == 10143) return "monad-testnet";
+        if (chainId == 10200) return "chi";
+        if (chainId == 16661) return "0g";
+        if (chainId == 42161) return "arb1";
+        if (chainId == 42220) return "celo";
+        if (chainId == 43111) return "hemi";
+        if (chainId == 43114) return "avax";
+        if (chainId == 57073) return "ink";
+        if (chainId == 59144) return "linea";
+        if (chainId == 80069) return "bep";
+        if (chainId == 80094) return "berachain";
+        if (chainId == 81224) return "codex";
+        if (chainId == 84532) return "basesep";
+        if (chainId == 534352) return "scr";
+        if (chainId == 747474) return "katana";
+        if (chainId == 11155111) return "sep";
+        if (chainId == 1313161554) return "aurora";
+        revert ApiKitUrlNotFound(chainId);
+    }
+
+    function getTransactionServiceUrl(uint256 chainId) internal pure returns (string memory) {
+        return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
+    }
+
+    function getThirdPartyApiKitUrl(uint256 chainId) internal pure returns (string memory) {
+        if (chainId == 98866) {
+            return PLUME_TRANSACTION_SERVICE_URL;
+        }
+        return "";
+    }
+
+    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
+        address multiSendCallOnly = getThirdPartyMultiSendCallOnlyAddress(chainId);
+        if (multiSendCallOnly == address(0)) {
+            multiSendCallOnly = getOfficialMultiSendCallOnlyAddress(chainId);
+        }
+        if (multiSendCallOnly == address(0)) {
             revert MultiSendCallOnlyNotFound(chainId);
         }
-        return multiSendCallOnly;
+        return MultiSendCallOnly(multiSendCallOnly);
+    }
+
+    function getOfficialMultiSendCallOnlyAddress(uint256 chainId) internal pure returns (address) {
+        if (
+            chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
+                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
+                || chainId == 8453 || chainId == 42161 || chainId == 42220 || chainId == 43114 || chainId == 59144
+                || chainId == 84532 || chainId == 534352 || chainId == 11155111 || chainId == 1313161554
+        ) {
+            return MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL;
+        }
+
+        if (chainId == 324) {
+            return MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC;
+        }
+
+        if (
+            chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 988 || chainId == 3338
+                || chainId == 3637 || chainId == 9745 || chainId == 10143 || chainId == 10200 || chainId == 16661
+                || chainId == 43111 || chainId == 57073 || chainId == 80069 || chainId == 80094 || chainId == 81224
+                || chainId == 747474
+        ) {
+            return MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL;
+        }
+
+        if (chainId == 232) {
+            return MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC;
+        }
+
+        return address(0);
+    }
+
+    function getThirdPartyMultiSendCallOnlyAddress(uint256 chainId) internal pure returns (address) {
+        if (chainId == 98866) {
+            return MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL;
+        }
+        return address(0);
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
