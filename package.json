@@ -1,0 +1,7 @@
+{
+  "name": "safe-utils",
+  "private": true,
+  "devDependencies": {
+    "@safe-global/api-kit": "4.1.0"
+  }
+}
