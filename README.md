@@ -89,7 +89,7 @@ ffi = true
 
 ### Third-party integrations
 
-The following blockchains are integrated via third party APIs and not the official safe.global tx service:
+The following blockchains are integrated via third-party APIs and not the official `safe.global` tx service:
 
 | Blockchain | Provider |
 | --- | --- |
