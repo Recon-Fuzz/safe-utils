@@ -7,84 +7,45 @@ library SafeConfigFixtures {
         shortNames = new string[](39);
         uint256 index;
 
-        chainIds[index] = 1;
-        shortNames[index++] = "eth";
-        chainIds[index] = 10;
-        shortNames[index++] = "oeth";
-        chainIds[index] = 50;
-        shortNames[index++] = "xdc";
-        chainIds[index] = 56;
-        shortNames[index++] = "bnb";
-        chainIds[index] = 100;
-        shortNames[index++] = "gno";
-        chainIds[index] = 130;
-        shortNames[index++] = "unichain";
-        chainIds[index] = 137;
-        shortNames[index++] = "pol";
-        chainIds[index] = 143;
-        shortNames[index++] = "monad";
-        chainIds[index] = 146;
-        shortNames[index++] = "sonic";
-        chainIds[index] = 196;
-        shortNames[index++] = "okb";
-        chainIds[index] = 204;
-        shortNames[index++] = "opbnb";
-        chainIds[index] = 232;
-        shortNames[index++] = "lens";
-        chainIds[index] = 324;
-        shortNames[index++] = "zksync";
-        chainIds[index] = 480;
-        shortNames[index++] = "wc";
-        chainIds[index] = 988;
-        shortNames[index++] = "stable";
-        chainIds[index] = 999;
-        shortNames[index++] = "hyper";
-        chainIds[index] = 1101;
-        shortNames[index++] = "zkevm";
-        chainIds[index] = 3338;
-        shortNames[index++] = "peaq";
-        chainIds[index] = 3637;
-        shortNames[index++] = "btc";
-        chainIds[index] = 5000;
-        shortNames[index++] = "mantle";
-        chainIds[index] = 8453;
-        shortNames[index++] = "base";
-        chainIds[index] = 9745;
-        shortNames[index++] = "plasma";
-        chainIds[index] = 10143;
-        shortNames[index++] = "monad-testnet";
-        chainIds[index] = 10200;
-        shortNames[index++] = "chi";
-        chainIds[index] = 16661;
-        shortNames[index++] = "0g";
-        chainIds[index] = 42161;
-        shortNames[index++] = "arb1";
-        chainIds[index] = 42220;
-        shortNames[index++] = "celo";
-        chainIds[index] = 43111;
-        shortNames[index++] = "hemi";
-        chainIds[index] = 43114;
-        shortNames[index++] = "avax";
-        chainIds[index] = 57073;
-        shortNames[index++] = "ink";
-        chainIds[index] = 59144;
-        shortNames[index++] = "linea";
-        chainIds[index] = 80069;
-        shortNames[index++] = "bep";
-        chainIds[index] = 80094;
-        shortNames[index++] = "berachain";
-        chainIds[index] = 81224;
-        shortNames[index++] = "codex";
-        chainIds[index] = 84532;
-        shortNames[index++] = "basesep";
-        chainIds[index] = 534352;
-        shortNames[index++] = "scr";
-        chainIds[index] = 747474;
-        shortNames[index++] = "katana";
-        chainIds[index] = 11155111;
-        shortNames[index++] = "sep";
-        chainIds[index] = 1313161554;
-        shortNames[index++] = "aurora";
+        index = _pushOfficial(chainIds, shortNames, index, 1, "eth");
+        index = _pushOfficial(chainIds, shortNames, index, 10, "oeth");
+        index = _pushOfficial(chainIds, shortNames, index, 50, "xdc");
+        index = _pushOfficial(chainIds, shortNames, index, 56, "bnb");
+        index = _pushOfficial(chainIds, shortNames, index, 100, "gno");
+        index = _pushOfficial(chainIds, shortNames, index, 130, "unichain");
+        index = _pushOfficial(chainIds, shortNames, index, 137, "pol");
+        index = _pushOfficial(chainIds, shortNames, index, 143, "monad");
+        index = _pushOfficial(chainIds, shortNames, index, 146, "sonic");
+        index = _pushOfficial(chainIds, shortNames, index, 196, "okb");
+        index = _pushOfficial(chainIds, shortNames, index, 204, "opbnb");
+        index = _pushOfficial(chainIds, shortNames, index, 232, "lens");
+        index = _pushOfficial(chainIds, shortNames, index, 324, "zksync");
+        index = _pushOfficial(chainIds, shortNames, index, 480, "wc");
+        index = _pushOfficial(chainIds, shortNames, index, 988, "stable");
+        index = _pushOfficial(chainIds, shortNames, index, 999, "hyper");
+        index = _pushOfficial(chainIds, shortNames, index, 1101, "zkevm");
+        index = _pushOfficial(chainIds, shortNames, index, 3338, "peaq");
+        index = _pushOfficial(chainIds, shortNames, index, 3637, "btc");
+        index = _pushOfficial(chainIds, shortNames, index, 5000, "mantle");
+        index = _pushOfficial(chainIds, shortNames, index, 8453, "base");
+        index = _pushOfficial(chainIds, shortNames, index, 9745, "plasma");
+        index = _pushOfficial(chainIds, shortNames, index, 10143, "monad-testnet");
+        index = _pushOfficial(chainIds, shortNames, index, 10200, "chi");
+        index = _pushOfficial(chainIds, shortNames, index, 16661, "0g");
+        index = _pushOfficial(chainIds, shortNames, index, 42161, "arb1");
+        index = _pushOfficial(chainIds, shortNames, index, 42220, "celo");
+        index = _pushOfficial(chainIds, shortNames, index, 43111, "hemi");
+        index = _pushOfficial(chainIds, shortNames, index, 43114, "avax");
+        index = _pushOfficial(chainIds, shortNames, index, 57073, "ink");
+        index = _pushOfficial(chainIds, shortNames, index, 59144, "linea");
+        index = _pushOfficial(chainIds, shortNames, index, 80069, "bep");
+        index = _pushOfficial(chainIds, shortNames, index, 80094, "berachain");
+        index = _pushOfficial(chainIds, shortNames, index, 81224, "codex");
+        index = _pushOfficial(chainIds, shortNames, index, 84532, "basesep");
+        index = _pushOfficial(chainIds, shortNames, index, 534352, "scr");
+        index = _pushOfficial(chainIds, shortNames, index, 747474, "katana");
+        index = _pushOfficial(chainIds, shortNames, index, 11155111, "sep");
+        _pushOfficial(chainIds, shortNames, index, 1313161554, "aurora");
     }
 
     function multiSendChains() internal pure returns (uint256[] memory chainIds, address[] memory expected) {
@@ -92,15 +53,34 @@ library SafeConfigFixtures {
         expected = new address[](5);
         uint256 index;
 
-        chainIds[index] = 1;
-        expected[index++] = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
-        chainIds[index] = 324;
-        expected[index++] = 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F;
-        chainIds[index] = 232;
-        expected[index++] = 0x0408EF011960d02349d50286D20531229BCef773;
-        chainIds[index] = 10143;
-        expected[index++] = 0x9641d764fc13c8B624c04430C7356C1C7C8102e2;
-        chainIds[index] = 98866;
-        expected[index++] = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
+        index = _pushMultiSend(chainIds, expected, index, 1, 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
+        index = _pushMultiSend(chainIds, expected, index, 324, 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F);
+        index = _pushMultiSend(chainIds, expected, index, 232, 0x0408EF011960d02349d50286D20531229BCef773);
+        index = _pushMultiSend(chainIds, expected, index, 10143, 0x9641d764fc13c8B624c04430C7356C1C7C8102e2);
+        _pushMultiSend(chainIds, expected, index, 98866, 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
+    }
+
+    function _pushOfficial(
+        uint256[] memory chainIds,
+        string[] memory shortNames,
+        uint256 index,
+        uint256 chainId,
+        string memory shortName
+    ) private pure returns (uint256) {
+        chainIds[index] = chainId;
+        shortNames[index] = shortName;
+        return index + 1;
+    }
+
+    function _pushMultiSend(
+        uint256[] memory chainIds,
+        address[] memory expected,
+        uint256 index,
+        uint256 chainId,
+        address multiSendCallOnly
+    ) private pure returns (uint256) {
+        chainIds[index] = chainId;
+        expected[index] = multiSendCallOnly;
+        return index + 1;
     }
 }
