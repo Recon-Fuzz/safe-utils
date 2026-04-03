@@ -2,6 +2,11 @@
 pragma solidity ^0.8.13;
 
 library SafeConfigFixtures {
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC = 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL = 0x9641d764fc13c8B624c04430C7356C1C7C8102e2;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC = 0x0408EF011960d02349d50286D20531229BCef773;
+
     function officialChains() internal pure returns (uint256[] memory chainIds, string[] memory shortNames) {
         chainIds = new uint256[](39);
         shortNames = new string[](39);
@@ -49,15 +54,50 @@ library SafeConfigFixtures {
     }
 
     function multiSendChains() internal pure returns (uint256[] memory chainIds, address[] memory expected) {
-        chainIds = new uint256[](5);
-        expected = new address[](5);
+        chainIds = new uint256[](40);
+        expected = new address[](40);
         uint256 index;
 
-        index = _pushMultiSend(chainIds, expected, index, 1, 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
-        index = _pushMultiSend(chainIds, expected, index, 324, 0xf220D3b4DFb23C4ade8C88E526C1353AbAcbC38F);
-        index = _pushMultiSend(chainIds, expected, index, 232, 0x0408EF011960d02349d50286D20531229BCef773);
-        index = _pushMultiSend(chainIds, expected, index, 10143, 0x9641d764fc13c8B624c04430C7356C1C7C8102e2);
-        _pushMultiSend(chainIds, expected, index, 98866, 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D);
+        index = _pushMultiSend(chainIds, expected, index, 1, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 10, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 50, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 56, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 100, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 130, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 137, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 143, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 146, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 196, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 204, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 232, MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
+        index = _pushMultiSend(chainIds, expected, index, 324, MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
+        index = _pushMultiSend(chainIds, expected, index, 480, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 988, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 999, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 1101, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 3338, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 3637, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 5000, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 8453, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 9745, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 10143, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 10200, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 16661, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 42161, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 42220, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 43111, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 43114, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 57073, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 59144, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 80069, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 80094, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 81224, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 84532, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 534352, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 747474, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 11155111, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        index = _pushMultiSend(chainIds, expected, index, 1313161554, MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        _pushMultiSend(chainIds, expected, index, 98866, MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
     }
 
     function _pushOfficial(

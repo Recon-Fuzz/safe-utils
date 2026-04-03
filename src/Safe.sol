@@ -68,6 +68,7 @@ library Safe {
         return self.instances[self.instances.length - 1];
     }
 
+    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
     function getApiKitUrl(Client storage, uint256 chainId) internal pure returns (string memory) {
         if (chainId == 98866) {
             return PLUME_TRANSACTION_SERVICE_URL;
@@ -123,13 +124,15 @@ library Safe {
         return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
     }
 
+    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
     function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
         if (chainId == 98866) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
         }
         if (chainId == 324) {
             return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
         }
+        // safe-deployments registers Lens against the zkSync deployment in both v1.3.0 and v1.4.1.
         if (chainId == 232) {
             return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
         }
@@ -145,15 +148,15 @@ library Safe {
     function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
         return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
                 || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
-                || chainId == 8453 || chainId == 42161 || chainId == 42220 || chainId == 43114 || chainId == 59144
-                || chainId == 84532 || chainId == 534352 || chainId == 11155111 || chainId == 1313161554);
+                || chainId == 8453 || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114
+                || chainId == 59144 || chainId == 84532 || chainId == 534352 || chainId == 11155111
+                || chainId == 1313161554);
     }
 
     function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
         return (chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 988 || chainId == 3338
-                || chainId == 3637 || chainId == 9745 || chainId == 10143 || chainId == 10200 || chainId == 16661
-                || chainId == 43111 || chainId == 57073 || chainId == 80069 || chainId == 80094 || chainId == 81224
-                || chainId == 747474);
+                || chainId == 3637 || chainId == 9745 || chainId == 10143 || chainId == 16661 || chainId == 43111
+                || chainId == 57073 || chainId == 80069 || chainId == 80094 || chainId == 81224 || chainId == 747474);
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
