@@ -36,13 +36,19 @@ function setUp() public {
 safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender);
 ```
 
-If you are using ledger, make sure to pass the derivation path as the last argument:
+If you are using a hardware wallet, make sure to pass the derivation path as the last argument:
 
 ```solidity
 safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), sender, "m/44'/60'/0'/0/0");
 ```
 
-Proposing a transaction/transactions using a Ledger will also require pre-computing the signature, due to a (current) limitation with forge.
+Ledger is the default. To sign with a Trezor instead, set the `HARDWARE_WALLET` environment variable:
+
+```bash
+HARDWARE_WALLET=trezor forge script ... --ffi
+```
+
+Proposing a transaction/transactions using a hardware wallet will also require pre-computing the signature, due to a (current) limitation with forge.
 
 The first step is to pre-compute the signature:
 
@@ -50,7 +56,7 @@ The first step is to pre-compute the signature:
 bytes memory signature = safe.sign(weth, abi.encodeCall(IWETH.withdraw, (0)), Enum.Operation.Call, sender, "m/44'/60'/0'/0/0");
 ```
 
-Note that this call will fail if `forge script` is called with the `--ledger` flag, as that would block this library's contracts from utilising the same device. Instead, pass the Ledger derivation path as an argument to the script.
+Note that this call will fail if `forge script` is called with the `--ledger` or `--trezor` flag, as that would block this library's contracts from utilising the same device. Instead, pass the derivation path as an argument to the script.
 
 The second step is to take the value for the returned `bytes` and provide them when proposing the transaction:
 
