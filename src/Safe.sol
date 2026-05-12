@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {Vm} from "forge-std/Vm.sol";
+import {Vm, VmSafe} from "forge-std/Vm.sol";
+import {console} from "forge-std/console.sol";
 import {HTTP} from "solidity-http/HTTP.sol";
 import {MultiSendCallOnly} from "safe-smart-account/libraries/MultiSendCallOnly.sol";
 import {Enum} from "safe-smart-account/common/Enum.sol";
@@ -29,6 +30,7 @@ library Safe {
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
     error ProposeTransactionFailed(uint256 statusCode, string response);
+    error SimulationFailed();
 
     struct Instance {
         address safe;
@@ -163,6 +165,20 @@ library Safe {
         return ISafeSmartAccount(instance(self).safe).nonce();
     }
 
+    /// @notice Returns true when the script is running with --broadcast
+    function isBroadcastMode() internal view returns (bool) {
+        try vm.isContext(VmSafe.ForgeContext.ScriptBroadcast) returns (bool isBroadcast) {
+            return isBroadcast;
+        } catch {
+            return vm.envOr("SAFE_BROADCAST", false);
+        }
+    }
+
+    /// @notice Returns true when the script is running without --broadcast (dry-run / simulation)
+    function isSimulationMode() internal view returns (bool) {
+        return !isBroadcastMode();
+    }
+
     function getSafeTxHash(
         Client storage self,
         address to,
@@ -173,6 +189,147 @@ library Safe {
     ) internal view returns (bytes32) {
         return ISafeSmartAccount(instance(self).safe)
             .getTransactionHash(to, value, data, operation, 0, 0, 0, address(0), address(0), nonce);
+    }
+
+    // =========================================================================
+    // Simulation
+    // =========================================================================
+
+    /// @notice Execute a pre-built transaction against the Safe on a local fork
+    /// @dev    Caller is responsible for setting params.signature before calling.
+    ///         Use simulateTransactionNoSign for the common case where no real
+    ///         signature is needed.
+    function simulateTransaction(Client storage self, ExecTransactionParams memory params) internal returns (bool) {
+        address safeAddress = instance(self).safe;
+        console.log("[safe-utils] simulating to %s (nonce %d)", params.to, params.nonce);
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.prank(params.sender);
+        try ISafeSmartAccount(safeAddress).execTransaction(
+            params.to, params.value, params.data, params.operation,
+            0, 0, 0, address(0), payable(0), params.signature
+        ) returns (bool ok) {
+            if (ok) { console.log("[safe-utils] simulation succeeded"); return true; }
+            console.log("[safe-utils] simulation failed: execTransaction returned false");
+            return false;
+        } catch (bytes memory revertData) {
+            console.log("[safe-utils] simulation reverted");
+            if (revertData.length > 0) console.logBytes(revertData);
+            return false;
+        }
+    }
+
+    /// @notice Simulate a single Call transaction without a hardware wallet
+    /// @dev    Writes 1 to approvedHashes[sender][txHash] via vm.store so the Safe
+    ///         accepts the synthetic approved-hash signature (r=sender, s=0, v=1).
+    function simulateTransactionNoSign(Client storage self, address to, bytes memory data, address sender)
+        internal
+        returns (bool)
+    {
+        return simulateTransactionNoSign(self, to, data, Enum.Operation.Call, sender);
+    }
+
+    /// @notice Simulate a transaction without a hardware wallet, with explicit operation type
+    function simulateTransactionNoSign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address sender
+    ) internal returns (bool) {
+        uint256 nonce = getNonce(self);
+        address safeAddress = instance(self).safe;
+        bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
+        // Safe's approvedHashes mapping is at storage slot 8.
+        // approvedHashes[owner][txHash] slot = keccak256(txHash || keccak256(owner || 8))
+        bytes32 ownerSlot = keccak256(abi.encode(sender, uint256(8)));
+        bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
+        // Approved-hash signature format: r=owner (padded), s=0, v=1
+        bytes memory signature = abi.encodePacked(bytes32(uint256(uint160(sender))), bytes32(0), uint8(1));
+        return simulateTransaction(self, ExecTransactionParams({
+            to: to, value: 0, data: data, operation: operation,
+            sender: sender, signature: signature, nonce: nonce
+        }));
+    }
+
+    /// @notice Simulate a batch of transactions via MultiSend without a hardware wallet
+    function simulateTransactionsNoSign(Client storage self, address[] memory targets, bytes[] memory datas, address sender)
+        internal
+        returns (bool)
+    {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        uint256 nonce = getNonce(self);
+        address safeAddress = instance(self).safe;
+        bytes32 txHash = getSafeTxHash(self, to, 0, data, Enum.Operation.DelegateCall, nonce);
+        bytes32 ownerSlot = keccak256(abi.encode(sender, uint256(8)));
+        bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
+        /// forge-lint: disable-next-line(unsafe-cheatcode)
+        vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
+        bytes memory signature = abi.encodePacked(bytes32(uint256(uint160(sender))), bytes32(0), uint8(1));
+        return simulateTransaction(self, ExecTransactionParams({
+            to: to, value: 0, data: data, operation: Enum.Operation.DelegateCall,
+            sender: sender, signature: signature, nonce: nonce
+        }));
+    }
+
+    /// @notice Simulate a single transaction with a multi-sig Safe (threshold > 1) without hardware wallets
+    /// @dev    Signers are sorted ascending as required by Safe's checkNSignatures.
+    ///         Provide at least `threshold` addresses — extras are ignored by the Safe.
+    function simulateTransactionMultiSigNoSign(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address[] memory signers
+    ) internal returns (bool) {
+        return _simulateMultiSig(self, to, data, Enum.Operation.Call, signers);
+    }
+
+    /// @notice Simulate a batch of transactions with a multi-sig Safe without hardware wallets
+    function simulateTransactionsMultiSigNoSign(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address[] memory signers
+    ) internal returns (bool) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        return _simulateMultiSig(self, to, data, Enum.Operation.DelegateCall, signers);
+    }
+
+    function _simulateMultiSig(
+        Client storage self,
+        address to,
+        bytes memory data,
+        Enum.Operation operation,
+        address[] memory signers
+    ) private returns (bool) {
+        uint256 nonce = getNonce(self);
+        address safeAddress = instance(self).safe;
+        bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
+        address[] memory sorted = _sortAddresses(signers);
+        bytes memory signatures;
+        for (uint256 i = 0; i < sorted.length; i++) {
+            bytes32 ownerSlot = keccak256(abi.encode(sorted[i], uint256(8)));
+            bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
+            /// forge-lint: disable-next-line(unsafe-cheatcode)
+            vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
+            signatures = abi.encodePacked(signatures, bytes32(uint256(uint160(sorted[i]))), bytes32(0), uint8(1));
+        }
+        return simulateTransaction(self, ExecTransactionParams({
+            to: to, value: 0, data: data, operation: operation,
+            sender: sorted[0], signature: signatures, nonce: nonce
+        }));
+    }
+
+    /// @dev Bubble-sort signers ascending. Safe requires signatures ordered by signer address.
+    function _sortAddresses(address[] memory arr) private pure returns (address[] memory) {
+        uint256 n = arr.length;
+        for (uint256 i = 0; i < n; i++) {
+            for (uint256 j = i + 1; j < n; j++) {
+                if (uint160(arr[i]) > uint160(arr[j])) (arr[i], arr[j]) = (arr[j], arr[i]);
+            }
+        }
+        return arr;
     }
 
     // https://github.com/safe-global/safe-core-sdk/blob/r60/packages/api-kit/src/SafeApiKit.ts#L574
@@ -272,6 +429,24 @@ library Safe {
         return txHash;
     }
 
+    /// @notice Propose a transaction with a precomputed signature and an explicit nonce
+    /// @dev    Use this when proposing multiple transactions in one script run to avoid
+    ///         nonce collisions — the Safe's on-chain nonce only advances on execution,
+    ///         so sequential proposes must supply an incrementing nonce manually.
+    function proposeTransactionWithSignature(
+        Client storage self,
+        address to,
+        bytes memory data,
+        address sender,
+        bytes memory signature,
+        uint256 nonce
+    ) internal returns (bytes32 txHash) {
+        txHash = proposeTransaction(self, ExecTransactionParams({
+            to: to, value: 0, data: data, operation: Enum.Operation.Call,
+            sender: sender, signature: signature, nonce: nonce
+        }));
+    }
+
     function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
         internal
         view
@@ -351,6 +526,23 @@ library Safe {
         });
         txHash = proposeTransaction(self, params);
         return txHash;
+    }
+
+    /// @notice Propose multiple transactions with a precomputed signature and an explicit nonce
+    /// @dev    Same nonce rationale as proposeTransactionWithSignature(..., nonce).
+    function proposeTransactionsWithSignature(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender,
+        bytes memory signature,
+        uint256 nonce
+    ) internal returns (bytes32 txHash) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        txHash = proposeTransaction(self, ExecTransactionParams({
+            to: to, value: 0, data: data, operation: Enum.Operation.DelegateCall,
+            sender: sender, signature: signature, nonce: nonce
+        }));
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)
