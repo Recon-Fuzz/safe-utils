@@ -166,11 +166,14 @@ library Safe {
     }
 
     /// @notice Returns true when the script is running with --broadcast
+    /// @dev    SAFE_BROADCAST env var takes precedence, useful for testing or
+    ///         environments where vm.isContext is unavailable.
     function isBroadcastMode() internal view returns (bool) {
+        if (vm.envOr("SAFE_BROADCAST", false)) return true;
         try vm.isContext(VmSafe.ForgeContext.ScriptBroadcast) returns (bool isBroadcast) {
             return isBroadcast;
         } catch {
-            return vm.envOr("SAFE_BROADCAST", false);
+            return false;
         }
     }
 
