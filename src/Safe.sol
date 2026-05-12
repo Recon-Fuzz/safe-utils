@@ -30,7 +30,6 @@ library Safe {
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
     error ProposeTransactionFailed(uint256 statusCode, string response);
-    error SimulationFailed();
 
     struct Instance {
         address safe;

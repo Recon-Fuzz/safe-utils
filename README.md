@@ -80,6 +80,72 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+#### Simulation (no hardware wallet required)
+
+Simulate transactions against a local fork before broadcasting. No signing device is needed — the library writes directly to the Safe's `approvedHashes` storage slot.
+
+```solidity
+// Single transaction
+bool ok = safe.simulateTransactionNoSign(target, data, signerAddress);
+
+// Batch
+bool ok = safe.simulateTransactionsNoSign(targets, datas, signerAddress);
+
+// Multi-sig (threshold > 1) — pass all required signers
+address[] memory signers = new address[](2);
+signers[0] = signer1;
+signers[1] = signer2;
+bool ok = safe.simulateTransactionMultiSigNoSign(target, data, signers);
+bool ok = safe.simulateTransactionsMultiSigNoSign(targets, datas, signers);
+```
+
+All simulate functions return `true` on success and `false` on revert — they never throw, so you can inspect failures without aborting the script.
+
+Mode detection helpers let you branch between simulation and broadcast in one script:
+
+```solidity
+if (Safe.isSimulationMode()) { /* fork run */ }
+if (Safe.isBroadcastMode()) { /* --broadcast run */ }
+```
+
+Set the `SAFE_BROADCAST` environment variable to `true` to force broadcast mode regardless of the `--broadcast` flag (useful in CI).
+
+#### SafeScriptBase
+
+`SafeScriptBase` is an abstract Foundry script that wires up simulation and broadcast automatically. Extend it instead of writing the routing logic yourself:
+
+```solidity
+import {SafeScriptBase} from "safe-utils/SafeScriptBase.sol";
+
+contract MyScript is SafeScriptBase {
+    function run() external {
+        _initializeSafe(); // reads DEPLOYER_SAFE_ADDRESS, SIGNER_ADDRESS, DERIVATION_PATH
+
+        // Routes to simulate (no --broadcast) or propose (--broadcast) automatically
+        _proposeTransaction(target, data, "Description shown in logs");
+
+        // Batch
+        _proposeTransactions(targets, datas, "Batch description");
+
+        // Deployment — skips if code already present, reverts if missing after simulation
+        _proposeTransactionWithVerification(factory, deployData, expectedAddr, "Deploy Foo");
+    }
+}
+```
+
+For multi-sig scripts use `_initializeSafeMultiSig()` instead, which reads `SIGNER_ADDRESS_0`, `SIGNER_ADDRESS_1`, … from the environment.
+
+**Environment variables for `SafeScriptBase`:**
+
+| Variable | Description |
+| --- | --- |
+| `DEPLOYER_SAFE_ADDRESS` | The Safe address |
+| `SIGNER_ADDRESS` | Owner address (single-sig) |
+| `SIGNER_ADDRESS_0`, `_1`, … | Owner addresses (multi-sig) |
+| `DERIVATION_PATH` | HW wallet path, e.g. `m/44'/60'/0'/0/0` |
+| `HARDWARE_WALLET` | `ledger` (default) or `trezor` |
+| `SAFE_BROADCAST` | Set to `true` to force broadcast mode |
+
 ### Requirements
 
 - Foundry with FFI enabled:
