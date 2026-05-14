@@ -334,6 +334,10 @@ library Safe {
         Enum.Operation operation,
         address[] memory signers
     ) private returns (bool) {
+        if (signers.length == 0) {
+            console.log("[safe-utils] simulation failed: no signers provided");
+            return false;
+        }
         uint256 nonce = getNonce(self);
         address safeAddress = instance(self).safe;
         bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);

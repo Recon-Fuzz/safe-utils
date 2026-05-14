@@ -137,6 +137,24 @@ contract SafeSimulationTest is Test {
         assertFalse(ok);
     }
 
+    function test_Safe_simulateTransactionMultiSigNoSign_returnsFalseWithEmptySigners() public {
+        // Empty signer array must return false, not revert with an out-of-bounds panic
+        address[] memory signers = new address[](0);
+        bool ok = safe.simulateTransactionMultiSigNoSign(WETH, abi.encodeCall(IWETH.withdraw, (0)), signers);
+        assertFalse(ok);
+    }
+
+    function test_Safe_simulateTransactionsMultiSigNoSign_returnsFalseWithEmptySigners() public {
+        address[] memory targets = new address[](1);
+        bytes[] memory datas = new bytes[](1);
+        targets[0] = WETH;
+        datas[0] = abi.encodeCall(IWETH.withdraw, (0));
+
+        address[] memory signers = new address[](0);
+        bool ok = safe.simulateTransactionsMultiSigNoSign(targets, datas, signers);
+        assertFalse(ok);
+    }
+
     function test_Safe_simulateTransactionsMultiSigNoSign_succeeds() public {
         vm.prank(SAFE_ADDRESS);
         ISafeOwnerManager(SAFE_ADDRESS).changeThreshold(2);
