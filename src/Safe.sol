@@ -449,6 +449,28 @@ library Safe {
         string memory derivationPath
     ) internal returns (bytes memory) {
         if (bytes(derivationPath).length > 0) {
+            // Hardware wallet selection via HARDWARE_WALLET env var (defaults to ledger)
+            string memory hardwareWallet = vm.envOr("HARDWARE_WALLET", string("ledger"));
+            if (keccak256(bytes(hardwareWallet)) == keccak256(bytes("trezor"))) {
+                // Trezor signs the raw safeTxHash: `cast wallet sign` does not support
+                // EIP-712 --data with --trezor, so we must pass the hash as the message.
+                bytes32 safeTxHash = getSafeTxHash(self, to, 0, data, operation, nonce);
+                string[] memory trezorInputs = new string[](7);
+                trezorInputs[0] = "cast";
+                trezorInputs[1] = "wallet";
+                trezorInputs[2] = "sign";
+                trezorInputs[3] = "--trezor";
+                trezorInputs[4] = "--mnemonic-derivation-path";
+                trezorInputs[5] = derivationPath;
+                trezorInputs[6] = vm.toString(safeTxHash);
+                /// forge-lint: disable-next-line(unsafe-cheatcode)
+                bytes memory trezorOutput = vm.ffi(trezorInputs);
+                // Trezor uses eth_sign, which prepends "\x19Ethereum Signed Message:\n32"
+                // to the hash. Safe's checkNSignatures detects this via v >= 31, so add 4.
+                trezorOutput[64] = bytes1(uint8(trezorOutput[64]) + 4);
+                return trezorOutput;
+            }
+
             string[] memory inputs = new string[](8);
             inputs[0] = "cast";
             inputs[1] = "wallet";
