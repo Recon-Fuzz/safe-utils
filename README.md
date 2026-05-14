@@ -91,7 +91,8 @@ bool ok = safe.simulateTransactionNoSign(target, data, signerAddress);
 // Batch
 bool ok = safe.simulateTransactionsNoSign(targets, datas, signerAddress);
 
-// Multi-sig (threshold > 1) — pass all required signers
+// Multi-sig (threshold > 1) — pass at least `threshold` valid owner addresses.
+// Non-owners and duplicates in the array are silently filtered out.
 address[] memory signers = new address[](2);
 signers[0] = signer1;
 signers[1] = signer2;

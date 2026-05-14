@@ -306,7 +306,7 @@ library Safe {
 
     /// @notice Simulate a single transaction with a multi-sig Safe (threshold > 1) without hardware wallets
     /// @dev    Signers are sorted ascending as required by Safe's checkNSignatures.
-    ///         Non-owners are filtered out; provide at least `threshold` valid owners.
+    ///         Non-owners and duplicates are filtered out; provide at least `threshold` unique valid owners.
     function simulateTransactionMultiSigNoSign(
         Client storage self,
         address to,
@@ -317,6 +317,8 @@ library Safe {
     }
 
     /// @notice Simulate a batch of transactions with a multi-sig Safe without hardware wallets
+    /// @dev    Signers are sorted ascending as required by Safe's checkNSignatures.
+    ///         Non-owners and duplicates are filtered out; provide at least `threshold` unique valid owners.
     function simulateTransactionsMultiSigNoSign(
         Client storage self,
         address[] memory targets,
@@ -351,12 +353,18 @@ library Safe {
         bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
         address[] memory sorted = _sortAddresses(validOwners);
         bytes memory signatures;
+        // Skip duplicates: Safe's checkNSignatures requires strictly ascending owners,
+        // so a repeated address (e.g. typo in SIGNER_ADDRESS_*) would otherwise fail.
+        // address(0) is never a valid Safe owner, so the initial value is safe.
+        address lastSigner = address(0);
         for (uint256 i; i < sorted.length; i++) {
+            if (sorted[i] == lastSigner) continue;
             bytes32 ownerSlot = keccak256(abi.encode(sorted[i], SAFE_APPROVED_HASHES_SLOT));
             bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
             /// forge-lint: disable-next-line(unsafe-cheatcode)
             vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
             signatures = abi.encodePacked(signatures, bytes32(uint256(uint160(sorted[i]))), bytes32(0), uint8(1));
+            lastSigner = sorted[i];
         }
         return simulateTransaction(
             self,

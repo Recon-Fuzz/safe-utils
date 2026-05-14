@@ -35,7 +35,7 @@ abstract contract SafeScriptBase is Script {
     /// @dev Primary signer for single-sig scripts; index-0 signer in multi-sig scripts.
     address internal signer;
 
-    /// @dev All signers loaded by _initializeSafeMultiSig().
+    /// @dev All signers loaded by _initializeSafe() (single-element) or _initializeSafeMultiSig() (one or more).
     address[] internal signers;
 
     string internal derivationPath;

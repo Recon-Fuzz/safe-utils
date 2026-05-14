@@ -163,6 +163,34 @@ contract SafeSimulationTest is Test {
         assertFalse(ok);
     }
 
+    function test_Safe_simulateTransactionMultiSigNoSign_dedupesDuplicateSigners() public {
+        // Duplicates of a valid owner should be dropped, leaving enough unique
+        // signers to satisfy the threshold.
+        vm.prank(SAFE_ADDRESS);
+        ISafeOwnerManager(SAFE_ADDRESS).changeThreshold(2);
+
+        address[] memory signers = new address[](3);
+        signers[0] = SIGNER_1;
+        signers[1] = SIGNER_1; // typo: duplicate of SIGNER_1
+        signers[2] = SIGNER_2;
+
+        bool ok = safe.simulateTransactionMultiSigNoSign(WETH, abi.encodeCall(IWETH.withdraw, (0)), signers);
+        assertTrue(ok);
+    }
+
+    function test_Safe_simulateTransactionMultiSigNoSign_returnsFalseWhenDedupLeavesTooFew() public {
+        // Two copies of the same owner is still only 1 unique signer; threshold 2 cannot be met.
+        vm.prank(SAFE_ADDRESS);
+        ISafeOwnerManager(SAFE_ADDRESS).changeThreshold(2);
+
+        address[] memory signers = new address[](2);
+        signers[0] = SIGNER_1;
+        signers[1] = SIGNER_1;
+
+        bool ok = safe.simulateTransactionMultiSigNoSign(WETH, abi.encodeCall(IWETH.withdraw, (0)), signers);
+        assertFalse(ok);
+    }
+
     function test_Safe_simulateTransactionMultiSigNoSign_returnsFalseWithEmptySigners() public {
         // Empty signer array must return false, not revert with an out-of-bounds panic
         address[] memory signers = new address[](0);
