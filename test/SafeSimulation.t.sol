@@ -137,6 +137,32 @@ contract SafeSimulationTest is Test {
         assertFalse(ok);
     }
 
+    function test_Safe_simulateTransactionMultiSigNoSign_filtersNonOwnerExtras() public {
+        // Pass a low-address non-owner alongside two real owners. Without filtering,
+        // sorting would put the non-owner first and Safe's checkNSignatures would
+        // reject it with GS026. Filtering should drop it and let the sim succeed.
+        vm.prank(SAFE_ADDRESS);
+        ISafeOwnerManager(SAFE_ADDRESS).changeThreshold(2);
+
+        address lowAddressNonOwner = address(0x1); // sorts before any real owner
+        address[] memory signers = new address[](3);
+        signers[0] = lowAddressNonOwner;
+        signers[1] = SIGNER_1;
+        signers[2] = SIGNER_2;
+
+        bool ok = safe.simulateTransactionMultiSigNoSign(WETH, abi.encodeCall(IWETH.withdraw, (0)), signers);
+        assertTrue(ok);
+    }
+
+    function test_Safe_simulateTransactionMultiSigNoSign_returnsFalseWithOnlyNonOwners() public {
+        address[] memory signers = new address[](2);
+        signers[0] = address(0x1);
+        signers[1] = address(0x2);
+
+        bool ok = safe.simulateTransactionMultiSigNoSign(WETH, abi.encodeCall(IWETH.withdraw, (0)), signers);
+        assertFalse(ok);
+    }
+
     function test_Safe_simulateTransactionMultiSigNoSign_returnsFalseWithEmptySigners() public {
         // Empty signer array must return false, not revert with an out-of-bounds panic
         address[] memory signers = new address[](0);

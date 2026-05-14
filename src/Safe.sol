@@ -306,7 +306,7 @@ library Safe {
 
     /// @notice Simulate a single transaction with a multi-sig Safe (threshold > 1) without hardware wallets
     /// @dev    Signers are sorted ascending as required by Safe's checkNSignatures.
-    ///         Provide at least `threshold` addresses — extras are ignored by the Safe.
+    ///         Non-owners are filtered out; provide at least `threshold` valid owners.
     function simulateTransactionMultiSigNoSign(
         Client storage self,
         address to,
@@ -338,10 +338,18 @@ library Safe {
             console.log("[safe-utils] simulation failed: no signers provided");
             return false;
         }
-        uint256 nonce = getNonce(self);
         address safeAddress = instance(self).safe;
+        // Filter to actual Safe owners. Safe's checkNSignatures only validates the first
+        // `threshold` signatures (post-sort) and rejects non-owners with GS026, so a
+        // low-address non-owner could otherwise poison the prefix and break simulation.
+        address[] memory validOwners = _filterOwners(safeAddress, signers);
+        if (validOwners.length == 0) {
+            console.log("[safe-utils] simulation failed: no valid owners in signers");
+            return false;
+        }
+        uint256 nonce = getNonce(self);
         bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
-        address[] memory sorted = _sortAddresses(signers);
+        address[] memory sorted = _sortAddresses(validOwners);
         bytes memory signatures;
         for (uint256 i; i < sorted.length; i++) {
             bytes32 ownerSlot = keccak256(abi.encode(sorted[i], SAFE_APPROVED_HASHES_SLOT));
@@ -362,6 +370,22 @@ library Safe {
                 nonce: nonce
             })
         );
+    }
+
+    /// @dev Return only the addresses in `signers` that are current owners of the Safe.
+    function _filterOwners(address safeAddress, address[] memory signers) private view returns (address[] memory) {
+        address[] memory tmp = new address[](signers.length);
+        uint256 count;
+        for (uint256 i; i < signers.length; i++) {
+            if (ISafeSmartAccount(safeAddress).isOwner(signers[i])) {
+                tmp[count++] = signers[i];
+            }
+        }
+        address[] memory result = new address[](count);
+        for (uint256 i; i < count; i++) {
+            result[i] = tmp[i];
+        }
+        return result;
     }
 
     /// @dev Bubble-sort signers ascending. Safe requires signatures ordered by signer address.
