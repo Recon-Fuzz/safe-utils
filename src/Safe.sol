@@ -26,6 +26,9 @@ library Safe {
     address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL = 0x9641d764fc13c8B624c04430C7356C1C7C8102e2;
     address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC = 0x0408EF011960d02349d50286D20531229BCef773;
 
+    // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
+    uint256 constant SAFE_APPROVED_HASHES_SLOT = 8;
+
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
@@ -257,9 +260,7 @@ library Safe {
         uint256 nonce = getNonce(self);
         address safeAddress = instance(self).safe;
         bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
-        // Safe's approvedHashes mapping is at storage slot 8.
-        // approvedHashes[owner][txHash] slot = keccak256(txHash || keccak256(owner || 8))
-        bytes32 ownerSlot = keccak256(abi.encode(sender, uint256(8)));
+        bytes32 ownerSlot = keccak256(abi.encode(sender, SAFE_APPROVED_HASHES_SLOT));
         bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
@@ -284,7 +285,7 @@ library Safe {
         uint256 nonce = getNonce(self);
         address safeAddress = instance(self).safe;
         bytes32 txHash = getSafeTxHash(self, to, 0, data, Enum.Operation.DelegateCall, nonce);
-        bytes32 ownerSlot = keccak256(abi.encode(sender, uint256(8)));
+        bytes32 ownerSlot = keccak256(abi.encode(sender, SAFE_APPROVED_HASHES_SLOT));
         bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
@@ -338,8 +339,8 @@ library Safe {
         bytes32 txHash = getSafeTxHash(self, to, 0, data, operation, nonce);
         address[] memory sorted = _sortAddresses(signers);
         bytes memory signatures;
-        for (uint256 i = 0; i < sorted.length; i++) {
-            bytes32 ownerSlot = keccak256(abi.encode(sorted[i], uint256(8)));
+        for (uint256 i; i < sorted.length; i++) {
+            bytes32 ownerSlot = keccak256(abi.encode(sorted[i], SAFE_APPROVED_HASHES_SLOT));
             bytes32 approvalSlot = keccak256(abi.encode(txHash, ownerSlot));
             /// forge-lint: disable-next-line(unsafe-cheatcode)
             vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
@@ -362,7 +363,7 @@ library Safe {
     /// @dev Bubble-sort signers ascending. Safe requires signatures ordered by signer address.
     function _sortAddresses(address[] memory arr) private pure returns (address[] memory) {
         uint256 n = arr.length;
-        for (uint256 i = 0; i < n; i++) {
+        for (uint256 i; i < n; i++) {
             for (uint256 j = i + 1; j < n; j++) {
                 if (uint160(arr[i]) > uint160(arr[j])) (arr[i], arr[j]) = (arr[j], arr[i]);
             }
