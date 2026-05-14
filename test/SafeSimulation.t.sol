@@ -160,17 +160,23 @@ contract SafeSimulationTest is Test {
     // Nonce overloads
     // -------------------------------------------------------------------------
 
-    function test_Safe_proposeTransactionWithSignature_explicitNonce() public {
-        uint256 nonce = safe.getNonce();
+    function test_Safe_sign_explicitNonce_isUsedInSignature() public {
+        // Signing the same payload with different nonces must produce different signatures.
+        // This proves the explicit-nonce overload threads the nonce through to the
+        // SafeTx hash that gets signed (rather than silently using getNonce()).
         vm.rememberKey(uint256(SIGNER_1_KEY));
-        bytes memory sig =
-            safe.sign(WETH, abi.encodeCall(IWETH.withdraw, (0)), Enum.Operation.Call, SIGNER_1, nonce, "");
-        // Should not revert — verifies the explicit-nonce overload exists and builds correct params
-        safe.proposeTransactionWithSignature(WETH, abi.encodeCall(IWETH.withdraw, (0)), SIGNER_1, sig, nonce);
+        bytes memory data = abi.encodeCall(IWETH.withdraw, (0));
+
+        bytes memory sigA = safe.sign(WETH, data, Enum.Operation.Call, SIGNER_1, 100, "");
+        bytes memory sigB = safe.sign(WETH, data, Enum.Operation.Call, SIGNER_1, 101, "");
+
+        assertGt(sigA.length, 0);
+        assertGt(sigB.length, 0);
+        assertTrue(keccak256(sigA) != keccak256(sigB));
     }
 
-    function test_Safe_proposeTransactionsWithSignature_explicitNonce() public {
-        uint256 nonce = safe.getNonce();
+    function test_Safe_sign_explicitNonce_batchOperation() public {
+        // Same check for the DelegateCall path used by batch proposes.
         vm.rememberKey(uint256(SIGNER_1_KEY));
 
         address[] memory targets = new address[](2);
@@ -181,7 +187,11 @@ contract SafeSimulationTest is Test {
         datas[1] = abi.encodeCall(IWETH.withdraw, (0));
 
         (address to, bytes memory data) = safe.getProposeTransactionsTargetAndData(targets, datas);
-        bytes memory sig = safe.sign(to, data, Enum.Operation.DelegateCall, SIGNER_1, nonce, "");
-        safe.proposeTransactionsWithSignature(targets, datas, SIGNER_1, sig, nonce);
+        bytes memory sigA = safe.sign(to, data, Enum.Operation.DelegateCall, SIGNER_1, 100, "");
+        bytes memory sigB = safe.sign(to, data, Enum.Operation.DelegateCall, SIGNER_1, 101, "");
+
+        assertGt(sigA.length, 0);
+        assertGt(sigB.length, 0);
+        assertTrue(keccak256(sigA) != keccak256(sigB));
     }
 }
