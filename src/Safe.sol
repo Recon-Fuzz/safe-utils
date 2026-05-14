@@ -206,16 +206,32 @@ library Safe {
         console.log("[safe-utils] simulating to %s (nonce %d)", params.to, params.nonce);
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         vm.prank(params.sender);
-        try ISafeSmartAccount(safeAddress).execTransaction(
-            params.to, params.value, params.data, params.operation,
-            0, 0, 0, address(0), payable(0), params.signature
-        ) returns (bool ok) {
-            if (ok) { console.log("[safe-utils] simulation succeeded"); return true; }
+        try ISafeSmartAccount(safeAddress)
+            .execTransaction(
+                params.to,
+                params.value,
+                params.data,
+                params.operation,
+                0,
+                0,
+                0,
+                address(0),
+                payable(0),
+                params.signature
+            ) returns (
+            bool ok
+        ) {
+            if (ok) {
+                console.log("[safe-utils] simulation succeeded");
+                return true;
+            }
             console.log("[safe-utils] simulation failed: execTransaction returned false");
             return false;
         } catch (bytes memory revertData) {
             console.log("[safe-utils] simulation reverted");
-            if (revertData.length > 0) console.logBytes(revertData);
+            if (revertData.length > 0) {
+                console.logBytes(revertData);
+            }
             return false;
         }
     }
@@ -249,17 +265,21 @@ library Safe {
         vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
         // Approved-hash signature format: r=owner (padded), s=0, v=1
         bytes memory signature = abi.encodePacked(bytes32(uint256(uint160(sender))), bytes32(0), uint8(1));
-        return simulateTransaction(self, ExecTransactionParams({
-            to: to, value: 0, data: data, operation: operation,
-            sender: sender, signature: signature, nonce: nonce
-        }));
+        return simulateTransaction(
+            self,
+            ExecTransactionParams({
+                to: to, value: 0, data: data, operation: operation, sender: sender, signature: signature, nonce: nonce
+            })
+        );
     }
 
     /// @notice Simulate a batch of transactions via MultiSend without a hardware wallet
-    function simulateTransactionsNoSign(Client storage self, address[] memory targets, bytes[] memory datas, address sender)
-        internal
-        returns (bool)
-    {
+    function simulateTransactionsNoSign(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        address sender
+    ) internal returns (bool) {
         (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
         uint256 nonce = getNonce(self);
         address safeAddress = instance(self).safe;
@@ -269,10 +289,18 @@ library Safe {
         /// forge-lint: disable-next-line(unsafe-cheatcode)
         vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
         bytes memory signature = abi.encodePacked(bytes32(uint256(uint160(sender))), bytes32(0), uint8(1));
-        return simulateTransaction(self, ExecTransactionParams({
-            to: to, value: 0, data: data, operation: Enum.Operation.DelegateCall,
-            sender: sender, signature: signature, nonce: nonce
-        }));
+        return simulateTransaction(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: Enum.Operation.DelegateCall,
+                sender: sender,
+                signature: signature,
+                nonce: nonce
+            })
+        );
     }
 
     /// @notice Simulate a single transaction with a multi-sig Safe (threshold > 1) without hardware wallets
@@ -317,10 +345,18 @@ library Safe {
             vm.store(safeAddress, approvalSlot, bytes32(uint256(1)));
             signatures = abi.encodePacked(signatures, bytes32(uint256(uint160(sorted[i]))), bytes32(0), uint8(1));
         }
-        return simulateTransaction(self, ExecTransactionParams({
-            to: to, value: 0, data: data, operation: operation,
-            sender: sorted[0], signature: signatures, nonce: nonce
-        }));
+        return simulateTransaction(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: operation,
+                sender: sorted[0],
+                signature: signatures,
+                nonce: nonce
+            })
+        );
     }
 
     /// @dev Bubble-sort signers ascending. Safe requires signatures ordered by signer address.
@@ -443,10 +479,18 @@ library Safe {
         bytes memory signature,
         uint256 nonce
     ) internal returns (bytes32 txHash) {
-        txHash = proposeTransaction(self, ExecTransactionParams({
-            to: to, value: 0, data: data, operation: Enum.Operation.Call,
-            sender: sender, signature: signature, nonce: nonce
-        }));
+        txHash = proposeTransaction(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: Enum.Operation.Call,
+                sender: sender,
+                signature: signature,
+                nonce: nonce
+            })
+        );
     }
 
     function getProposeTransactionsTargetAndData(Client storage self, address[] memory targets, bytes[] memory datas)
@@ -541,10 +585,18 @@ library Safe {
         uint256 nonce
     ) internal returns (bytes32 txHash) {
         (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
-        txHash = proposeTransaction(self, ExecTransactionParams({
-            to: to, value: 0, data: data, operation: Enum.Operation.DelegateCall,
-            sender: sender, signature: signature, nonce: nonce
-        }));
+        txHash = proposeTransaction(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: Enum.Operation.DelegateCall,
+                sender: sender,
+                signature: signature,
+                nonce: nonce
+            })
+        );
     }
 
     function getExecTransactionData(Client storage self, address to, bytes memory data, address sender)

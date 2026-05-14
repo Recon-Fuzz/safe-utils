@@ -59,8 +59,12 @@ abstract contract SafeScriptBase is Script {
         derivationPath = vm.envOr("DERIVATION_PATH", string(""));
         _isSimulation = Safe.isSimulationMode();
         currentNonce = safe.getNonce();
-        console.log("[safe-utils] mode: %s | safe: %s | signer: %s",
-            _isSimulation ? "simulation" : "broadcast", deployerSafeAddress, signer);
+        console.log(
+            "[safe-utils] mode: %s | safe: %s | signer: %s",
+            _isSimulation ? "simulation" : "broadcast",
+            deployerSafeAddress,
+            signer
+        );
     }
 
     /// @notice Initialize for a multi-sig Safe. Reads SIGNER_ADDRESS_0, _1, _2 … from env.
@@ -84,8 +88,12 @@ abstract contract SafeScriptBase is Script {
         derivationPath = vm.envOr("DERIVATION_PATH", string(""));
         _isSimulation = Safe.isSimulationMode();
         currentNonce = safe.getNonce();
-        console.log("[safe-utils] mode: %s | safe: %s | signers: %d",
-            _isSimulation ? "simulation" : "broadcast", deployerSafeAddress, signers.length);
+        console.log(
+            "[safe-utils] mode: %s | safe: %s | signers: %d",
+            _isSimulation ? "simulation" : "broadcast",
+            deployerSafeAddress,
+            signers.length
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -161,10 +169,27 @@ abstract contract SafeScriptBase is Script {
     // Utility
     // -------------------------------------------------------------------------
 
-    function isSimulation() internal view returns (bool) { return _isSimulation; }
-    function getSafeNonce() internal view returns (uint256) { return safe.getNonce(); }
-    function getSafeAddress() internal view returns (address) { return deployerSafeAddress; }
-    function getSigners() internal view returns (address[] memory) { return signers; }
-    function getSignerCount() internal view returns (uint256) { return signers.length; }
-    function isMultiSig() internal view returns (bool) { return signers.length > 1; }
+    function isSimulation() internal view returns (bool) {
+        return _isSimulation;
+    }
+
+    function getSafeNonce() internal view returns (uint256) {
+        return safe.getNonce();
+    }
+
+    function getSafeAddress() internal view returns (address) {
+        return deployerSafeAddress;
+    }
+
+    function getSigners() internal view returns (address[] memory) {
+        return signers;
+    }
+
+    function getSignerCount() internal view returns (uint256) {
+        return signers.length;
+    }
+
+    function isMultiSig() internal view returns (bool) {
+        return signers.length > 1;
+    }
 }

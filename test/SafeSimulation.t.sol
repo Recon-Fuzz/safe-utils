@@ -163,7 +163,8 @@ contract SafeSimulationTest is Test {
     function test_Safe_proposeTransactionWithSignature_explicitNonce() public {
         uint256 nonce = safe.getNonce();
         vm.rememberKey(uint256(SIGNER_1_KEY));
-        bytes memory sig = safe.sign(WETH, abi.encodeCall(IWETH.withdraw, (0)), Enum.Operation.Call, SIGNER_1, nonce, "");
+        bytes memory sig =
+            safe.sign(WETH, abi.encodeCall(IWETH.withdraw, (0)), Enum.Operation.Call, SIGNER_1, nonce, "");
         // Should not revert — verifies the explicit-nonce overload exists and builds correct params
         safe.proposeTransactionWithSignature(WETH, abi.encodeCall(IWETH.withdraw, (0)), SIGNER_1, sig, nonce);
     }
