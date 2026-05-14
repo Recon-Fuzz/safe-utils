@@ -56,6 +56,7 @@ abstract contract SafeScriptBase is Script {
         deployerSafeAddress = vm.envAddress("DEPLOYER_SAFE_ADDRESS");
         safe.initialize(deployerSafeAddress);
         signer = vm.envAddress("SIGNER_ADDRESS");
+        signers.push(signer);
         derivationPath = vm.envOr("DERIVATION_PATH", string(""));
         _isSimulation = Safe.isSimulationMode();
         currentNonce = safe.getNonce();
