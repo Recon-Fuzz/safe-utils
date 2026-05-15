@@ -6,6 +6,8 @@ import {Enum} from "safe-smart-account/common/Enum.sol";
 interface ISafeSmartAccount {
     function nonce() external view returns (uint256);
 
+    function isOwner(address owner) external view returns (bool);
+
     function getTransactionHash(
         address to,
         uint256 value,
