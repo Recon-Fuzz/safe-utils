@@ -440,7 +440,9 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        HTTP.Response memory response = instance(self).http.instance()
+        HTTP.Response memory response = instance(self)
+            .http
+            .instance()
             .POST(
                 string.concat(
                     getApiKitUrl(self, block.chainid),
@@ -448,7 +450,9 @@ library Safe {
                     vm.toString(instance(self).safe),
                     "/multisig-transactions/"
                 )
-            ).withBody(instance(self).requestBody).request();
+            )
+            .withBody(instance(self).requestBody)
+            .request();
 
         // The response status should be 2xx, otherwise there was an issue
         if (response.status < 200 || response.status >= 300) {
