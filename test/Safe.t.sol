@@ -76,25 +76,18 @@ contract SafeConfigTest is Test {
         safe.initialize(address(0xBEEF));
     }
 
-    function test_Safe_getTransactionServiceUrl_matchesLatestOfficialSdkConfig() public pure {
+    function test_Safe_getTransactionServiceUrl_matchesLatestOfficialSdkConfig() public view {
         (uint256[] memory chainIds, string[] memory shortNames) = SafeConfigFixtures.officialChains();
+        _assertOfficialTransactionServiceUrls(chainIds, shortNames);
+    }
 
-        assertEq(chainIds.length, shortNames.length);
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            assertEq(
-                Safe.getTransactionServiceUrl(chainIds[i]),
-                string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", shortNames[i], "/api")
-            );
-        }
+    function test_Safe_getTransactionServiceUrl_resolvesUnlistedOfficialChains() public view {
+        (uint256[] memory chainIds, string[] memory shortNames) = SafeConfigFixtures.unlistedOfficialChains();
+        _assertOfficialTransactionServiceUrls(chainIds, shortNames);
     }
 
     function test_Safe_getApiKitUrl_prefersThirdPartyOverrides() public view {
         assertEq(safe.getApiKitUrl(98866), "https://safe-transaction-plume.onchainden.com/api");
-    }
-
-    function test_Safe_getApiKitUrl_resolvesUnlistedOfficialChains() public view {
-        assertEq(safe.getApiKitUrl(36900), "https://api.safe.global/tx-service/adi/api");
-        assertEq(Safe.getTransactionServiceUrl(36900), "https://api.safe.global/tx-service/adi/api");
     }
 
     function test_Safe_getApiKitUrl_revertsForUnknownChain() public {
@@ -118,6 +111,15 @@ contract SafeConfigTest is Test {
 
     function exposedGetApiKitUrl(uint256 chainId) external view returns (string memory) {
         return safe.getApiKitUrl(chainId);
+    }
+
+    function _assertOfficialTransactionServiceUrls(uint256[] memory chainIds, string[] memory shortNames) private view {
+        assertEq(chainIds.length, shortNames.length);
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            string memory expected = string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", shortNames[i], "/api");
+            assertEq(Safe.getTransactionServiceUrl(chainIds[i]), expected);
+            assertEq(safe.getApiKitUrl(chainIds[i]), expected);
+        }
     }
 
     function exposedGetMultiSendCallOnly(uint256 chainId) external view returns (address) {

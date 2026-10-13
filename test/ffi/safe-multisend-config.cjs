@@ -2,12 +2,21 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const MIN_EXPECTED_NETWORKS = 39;
-const SUPPORTED_THIRD_PARTY_CHAIN_IDS = [98866];
-// Served by the official transaction service but not yet listed in the api-kit config.
-const SUPPORTED_UNLISTED_OFFICIAL_CHAIN_IDS = [36900];
+// api-kit's network count at the pinned version; a lower count means the bundle scrape matched only part of it.
+const MIN_EXPECTED_NETWORKS = 52;
 const MULTI_SEND_VERSIONS = ["1.5.0", "1.4.1", "1.3.0"];
 
+// Chains to check beyond the ones api-kit lists, passed by the test from SafeConfigFixtures.multiSendChains().
+const fixtureChainIds = process.argv.slice(2).map((arg) => {
+  const chainId = Number(arg);
+  if (!Number.isInteger(chainId)) {
+    throw new Error(`Invalid chainId argument: ${arg}`);
+  }
+  return chainId;
+});
+
+// api-kit exports no network list, so it is scraped from the built bundle. package.json pins the exact version
+// because the bundle layout may change between releases.
 const apiKitBundlePath = require.resolve("@safe-global/api-kit");
 const apiKitBundle = fs.readFileSync(apiKitBundlePath, "utf8");
 
@@ -37,9 +46,9 @@ for (const network of networks) {
   chainIds.push(chainId);
 }
 
-for (const chainId of [...SUPPORTED_UNLISTED_OFFICIAL_CHAIN_IDS, ...SUPPORTED_THIRD_PARTY_CHAIN_IDS]) {
+for (const chainId of fixtureChainIds) {
   if (seenChainIds.has(chainId)) {
-    throw new Error(`Duplicate supported chainId: ${chainId}`);
+    continue;
   }
 
   seenChainIds.add(chainId);

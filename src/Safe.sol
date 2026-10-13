@@ -80,8 +80,59 @@ library Safe {
         return getTransactionServiceUrl(chainId);
     }
 
-    // Mirrors safe-global/safe-core-sdk/packages/api-kit/src/utils/config.ts on main.
-    function getNetworkShortName(uint256 chainId) internal pure returns (string memory) {
+    function getNetworkShortName(uint256 chainId) internal pure returns (string memory shortName) {
+        shortName = _officialNetworkShortName(chainId);
+        if (bytes(shortName).length == 0) revert ApiKitUrlNotFound(chainId);
+    }
+
+    function getTransactionServiceUrl(uint256 chainId) internal pure returns (string memory) {
+        return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
+    }
+
+    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
+    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
+        if (chainId == 324) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
+        }
+        // safe-deployments registers Lens against the zkSync deployment in both v1.3.0 and v1.4.1.
+        if (chainId == 232) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
+        }
+        if (_usesV130CanonicalMultiSend(chainId)) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        }
+        if (_usesV141CanonicalMultiSend(chainId)) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        }
+        revert MultiSendCallOnlyNotFound(chainId);
+    }
+
+    // Chains the official transaction service serves: the api-kit config plus the ones it does not list yet.
+    function _officialNetworkShortName(uint256 chainId) private pure returns (string memory) {
+        if (chainId == 36900) return "adi";
+        return _apiKitNetworkShortName(chainId);
+    }
+
+    function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
+        // Polygon zkEVM (1101) lost its transaction service, but safe-deployments still lists the contract.
+        return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
+                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
+                || chainId == 8453 || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114
+                || chainId == 59144 || chainId == 84532 || chainId == 534352 || chainId == 11155111
+                || chainId == 1313161554);
+    }
+
+    // Every chain the official transaction service serves, except the v1.3.0 and zkSync ones matched before,
+    // deploys the canonical v1.4.1 contract. So do Plume (98866), served by a third-party transaction service, and
+    // BTC (3637) and Codex (81224), which lost their transaction service while safe-deployments still lists them.
+    function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
+        if (chainId == 98866 || chainId == 3637 || chainId == 81224) return true;
+        return bytes(_officialNetworkShortName(chainId)).length != 0;
+    }
+
+    // Mirrors safe-global/safe-core-sdk/packages/api-kit/src/utils/config.ts on main; empty for a chain it does
+    // not list.
+    function _apiKitNetworkShortName(uint256 chainId) private pure returns (string memory) {
         if (chainId == 1) return "eth";
         if (chainId == 10) return "oeth";
         if (chainId == 50) return "xdc";
@@ -116,8 +167,6 @@ library Safe {
         if (chainId == 10200) return "chi";
         if (chainId == 16661) return "0g";
         if (chainId == 25363) return "fluent";
-        // Served by the official transaction service, not yet listed in the api-kit config.
-        if (chainId == 36900) return "adi";
         if (chainId == 42161) return "arb1";
         if (chainId == 42220) return "celo";
         if (chainId == 42431) return "tempo-moderato";
@@ -136,49 +185,7 @@ library Safe {
         if (chainId == 11142220) return "celo-sep";
         if (chainId == 11155111) return "sep";
         if (chainId == 1313161554) return "aurora";
-        revert ApiKitUrlNotFound(chainId);
-    }
-
-    function getTransactionServiceUrl(uint256 chainId) internal pure returns (string memory) {
-        return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
-    }
-
-    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
-    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
-        if (chainId == 98866) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
-        }
-        if (chainId == 324) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
-        }
-        // safe-deployments registers Lens against the zkSync deployment in both v1.3.0 and v1.4.1.
-        if (chainId == 232) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
-        }
-        if (_usesV141CanonicalMultiSend(chainId)) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
-        }
-        if (_usesV130CanonicalMultiSend(chainId)) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
-        }
-        revert MultiSendCallOnlyNotFound(chainId);
-    }
-
-    function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
-        return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
-                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 5000 || chainId == 8453
-                || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114 || chainId == 59144
-                || chainId == 84532 || chainId == 534352 || chainId == 11155111 || chainId == 1313161554);
-    }
-
-    function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
-        return (chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 677 || chainId == 988
-                || chainId == 1001 || chainId == 1672 || chainId == 1874 || chainId == 3338 || chainId == 4217
-                || chainId == 4326 || chainId == 4663 || chainId == 5003 || chainId == 5042 || chainId == 8217
-                || chainId == 9745 || chainId == 10143 || chainId == 16661 || chainId == 25363 || chainId == 36900
-                || chainId == 42431 || chainId == 43111 || chainId == 46630 || chainId == 57073 || chainId == 80069
-                || chainId == 80094 || chainId == 102030 || chainId == 747474 || chainId == 5042002
-                || chainId == 11142220);
+        return "";
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
