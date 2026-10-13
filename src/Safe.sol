@@ -96,29 +96,44 @@ library Safe {
         if (chainId == 232) return "lens";
         if (chainId == 324) return "zksync";
         if (chainId == 480) return "wc";
+        if (chainId == 677) return "bot";
         if (chainId == 988) return "stable";
         if (chainId == 999) return "hyper";
-        if (chainId == 1101) return "zkevm";
+        if (chainId == 1001) return "kairos";
+        if (chainId == 1672) return "pharos";
+        if (chainId == 1874) return "wch-sepolia";
         if (chainId == 3338) return "peaq";
-        if (chainId == 3637) return "btc";
+        if (chainId == 4217) return "tempo";
+        if (chainId == 4326) return "mega";
+        if (chainId == 4663) return "robinhood";
         if (chainId == 5000) return "mantle";
+        if (chainId == 5003) return "mnt-sep";
+        if (chainId == 5042) return "arc";
+        if (chainId == 8217) return "kaia";
         if (chainId == 8453) return "base";
         if (chainId == 9745) return "plasma";
         if (chainId == 10143) return "monad-testnet";
         if (chainId == 10200) return "chi";
         if (chainId == 16661) return "0g";
+        if (chainId == 25363) return "fluent";
+        // Served by the official transaction service, not yet listed in the api-kit config.
+        if (chainId == 36900) return "adi";
         if (chainId == 42161) return "arb1";
         if (chainId == 42220) return "celo";
+        if (chainId == 42431) return "tempo-moderato";
         if (chainId == 43111) return "hemi";
         if (chainId == 43114) return "avax";
+        if (chainId == 46630) return "robinhood-testnet";
         if (chainId == 57073) return "ink";
         if (chainId == 59144) return "linea";
         if (chainId == 80069) return "bep";
         if (chainId == 80094) return "berachain";
-        if (chainId == 81224) return "codex";
         if (chainId == 84532) return "basesep";
+        if (chainId == 102030) return "ctc";
         if (chainId == 534352) return "scr";
         if (chainId == 747474) return "katana";
+        if (chainId == 5042002) return "arc-testnet";
+        if (chainId == 11142220) return "celo-sep";
         if (chainId == 11155111) return "sep";
         if (chainId == 1313161554) return "aurora";
         revert ApiKitUrlNotFound(chainId);
@@ -151,16 +166,19 @@ library Safe {
 
     function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
         return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
-                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
-                || chainId == 8453 || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114
-                || chainId == 59144 || chainId == 84532 || chainId == 534352 || chainId == 11155111
-                || chainId == 1313161554);
+                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 5000 || chainId == 8453
+                || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114 || chainId == 59144
+                || chainId == 84532 || chainId == 534352 || chainId == 11155111 || chainId == 1313161554);
     }
 
     function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
-        return (chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 988 || chainId == 3338
-                || chainId == 3637 || chainId == 9745 || chainId == 10143 || chainId == 16661 || chainId == 43111
-                || chainId == 57073 || chainId == 80069 || chainId == 80094 || chainId == 81224 || chainId == 747474);
+        return (chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 677 || chainId == 988
+                || chainId == 1001 || chainId == 1672 || chainId == 1874 || chainId == 3338 || chainId == 4217
+                || chainId == 4326 || chainId == 4663 || chainId == 5003 || chainId == 5042 || chainId == 8217
+                || chainId == 9745 || chainId == 10143 || chainId == 16661 || chainId == 25363 || chainId == 36900
+                || chainId == 42431 || chainId == 43111 || chainId == 46630 || chainId == 57073 || chainId == 80069
+                || chainId == 80094 || chainId == 102030 || chainId == 747474 || chainId == 5042002
+                || chainId == 11142220);
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {

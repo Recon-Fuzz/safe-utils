@@ -92,6 +92,11 @@ contract SafeConfigTest is Test {
         assertEq(safe.getApiKitUrl(98866), "https://safe-transaction-plume.onchainden.com/api");
     }
 
+    function test_Safe_getApiKitUrl_resolvesUnlistedOfficialChains() public view {
+        assertEq(safe.getApiKitUrl(36900), "https://api.safe.global/tx-service/adi/api");
+        assertEq(Safe.getTransactionServiceUrl(36900), "https://api.safe.global/tx-service/adi/api");
+    }
+
     function test_Safe_getApiKitUrl_revertsForUnknownChain() public {
         vm.expectRevert(abi.encodeWithSelector(Safe.ApiKitUrlNotFound.selector, 31337));
         this.exposedGetApiKitUrl(31337);

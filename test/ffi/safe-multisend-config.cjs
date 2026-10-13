@@ -4,6 +4,8 @@ const vm = require("vm");
 
 const MIN_EXPECTED_NETWORKS = 39;
 const SUPPORTED_THIRD_PARTY_CHAIN_IDS = [98866];
+// Served by the official transaction service but not yet listed in the api-kit config.
+const SUPPORTED_UNLISTED_OFFICIAL_CHAIN_IDS = [36900];
 const MULTI_SEND_VERSIONS = ["1.5.0", "1.4.1", "1.3.0"];
 
 const apiKitBundlePath = require.resolve("@safe-global/api-kit");
@@ -35,7 +37,7 @@ for (const network of networks) {
   chainIds.push(chainId);
 }
 
-for (const chainId of SUPPORTED_THIRD_PARTY_CHAIN_IDS) {
+for (const chainId of [...SUPPORTED_UNLISTED_OFFICIAL_CHAIN_IDS, ...SUPPORTED_THIRD_PARTY_CHAIN_IDS]) {
   if (seenChainIds.has(chainId)) {
     throw new Error(`Duplicate supported chainId: ${chainId}`);
   }
