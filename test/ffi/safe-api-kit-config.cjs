@@ -1,7 +1,11 @@
 const fs = require("fs");
 const vm = require("vm");
 
-const MIN_EXPECTED_NETWORKS = 39;
+// api-kit's network count at the pinned version; a lower count means the bundle scrape matched only part of it.
+const MIN_EXPECTED_NETWORKS = 52;
+
+// api-kit exports no network list, so it is scraped from the built bundle. package.json pins the exact version
+// because the bundle layout may change between releases.
 const bundlePath = require.resolve("@safe-global/api-kit");
 const bundle = fs.readFileSync(bundlePath, "utf8");
 

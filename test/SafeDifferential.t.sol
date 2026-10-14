@@ -30,9 +30,12 @@ contract SafeDifferentialTest is Test {
         }
     }
 
+    // Sweeps every chain api-kit lists and every chain the fixture claims, so a chain api-kit drops stays checked
+    // against safe-deployments for as long as the library resolves it.
     function test_Safe_multiSendConfig_matchesSafeDeployments() public {
+        (uint256[] memory supportedChainIds,) = SafeConfigFixtures.multiSendChains();
         (uint256[] memory chainIds, uint256[] memory counts, address[] memory addresses) =
-            _readSafeDeploymentsMultiSendConfig();
+            _readSafeDeploymentsMultiSendConfig(supportedChainIds);
 
         assertEq(chainIds.length, counts.length);
 
@@ -65,13 +68,16 @@ contract SafeDifferentialTest is Test {
         urls = json.readStringArray(".urls");
     }
 
-    function _readSafeDeploymentsMultiSendConfig()
+    function _readSafeDeploymentsMultiSendConfig(uint256[] memory supportedChainIds)
         private
         returns (uint256[] memory chainIds, uint256[] memory counts, address[] memory addresses)
     {
-        string[] memory inputs = new string[](2);
+        string[] memory inputs = new string[](2 + supportedChainIds.length);
         inputs[0] = "node";
         inputs[1] = "test/ffi/safe-multisend-config.cjs";
+        for (uint256 i = 0; i < supportedChainIds.length; i++) {
+            inputs[2 + i] = vm.toString(supportedChainIds[i]);
+        }
 
         string memory json = string(vm.ffi(inputs));
         chainIds = json.readUintArray(".chainIds");

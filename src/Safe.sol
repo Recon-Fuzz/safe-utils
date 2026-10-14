@@ -80,8 +80,59 @@ library Safe {
         return getTransactionServiceUrl(chainId);
     }
 
-    // Mirrors safe-global/safe-core-sdk/packages/api-kit/src/utils/config.ts on main.
-    function getNetworkShortName(uint256 chainId) internal pure returns (string memory) {
+    function getNetworkShortName(uint256 chainId) internal pure returns (string memory shortName) {
+        shortName = _officialNetworkShortName(chainId);
+        if (bytes(shortName).length == 0) revert ApiKitUrlNotFound(chainId);
+    }
+
+    function getTransactionServiceUrl(uint256 chainId) internal pure returns (string memory) {
+        return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
+    }
+
+    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
+    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
+        if (chainId == 324) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
+        }
+        // safe-deployments registers Lens against the zkSync deployment in both v1.3.0 and v1.4.1.
+        if (chainId == 232) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
+        }
+        if (_usesV130CanonicalMultiSend(chainId)) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+        }
+        if (_usesV141CanonicalMultiSend(chainId)) {
+            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        }
+        revert MultiSendCallOnlyNotFound(chainId);
+    }
+
+    // Chains the official transaction service serves: the api-kit config plus the ones it does not list yet.
+    function _officialNetworkShortName(uint256 chainId) private pure returns (string memory) {
+        if (chainId == 36900) return "adi";
+        return _apiKitNetworkShortName(chainId);
+    }
+
+    function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
+        // Polygon zkEVM (1101) lost its transaction service, but safe-deployments still lists the contract.
+        return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
+                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
+                || chainId == 8453 || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114
+                || chainId == 59144 || chainId == 84532 || chainId == 534352 || chainId == 11155111
+                || chainId == 1313161554);
+    }
+
+    // Every chain the official transaction service serves, except the v1.3.0 and zkSync ones matched before,
+    // deploys the canonical v1.4.1 contract. So do Plume (98866), served by a third-party transaction service, and
+    // BTC (3637) and Codex (81224), which lost their transaction service while safe-deployments still lists them.
+    function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
+        if (chainId == 98866 || chainId == 3637 || chainId == 81224) return true;
+        return bytes(_officialNetworkShortName(chainId)).length != 0;
+    }
+
+    // Mirrors safe-global/safe-core-sdk/packages/api-kit/src/utils/config.ts on main; empty for a chain it does
+    // not list.
+    function _apiKitNetworkShortName(uint256 chainId) private pure returns (string memory) {
         if (chainId == 1) return "eth";
         if (chainId == 10) return "oeth";
         if (chainId == 50) return "xdc";
@@ -96,71 +147,45 @@ library Safe {
         if (chainId == 232) return "lens";
         if (chainId == 324) return "zksync";
         if (chainId == 480) return "wc";
+        if (chainId == 677) return "bot";
         if (chainId == 988) return "stable";
         if (chainId == 999) return "hyper";
-        if (chainId == 1101) return "zkevm";
+        if (chainId == 1001) return "kairos";
+        if (chainId == 1672) return "pharos";
+        if (chainId == 1874) return "wch-sepolia";
         if (chainId == 3338) return "peaq";
-        if (chainId == 3637) return "btc";
+        if (chainId == 4217) return "tempo";
+        if (chainId == 4326) return "mega";
+        if (chainId == 4663) return "robinhood";
         if (chainId == 5000) return "mantle";
+        if (chainId == 5003) return "mnt-sep";
+        if (chainId == 5042) return "arc";
+        if (chainId == 8217) return "kaia";
         if (chainId == 8453) return "base";
         if (chainId == 9745) return "plasma";
         if (chainId == 10143) return "monad-testnet";
         if (chainId == 10200) return "chi";
         if (chainId == 16661) return "0g";
+        if (chainId == 25363) return "fluent";
         if (chainId == 42161) return "arb1";
         if (chainId == 42220) return "celo";
+        if (chainId == 42431) return "tempo-moderato";
         if (chainId == 43111) return "hemi";
         if (chainId == 43114) return "avax";
+        if (chainId == 46630) return "robinhood-testnet";
         if (chainId == 57073) return "ink";
         if (chainId == 59144) return "linea";
         if (chainId == 80069) return "bep";
         if (chainId == 80094) return "berachain";
-        if (chainId == 81224) return "codex";
         if (chainId == 84532) return "basesep";
+        if (chainId == 102030) return "ctc";
         if (chainId == 534352) return "scr";
         if (chainId == 747474) return "katana";
+        if (chainId == 5042002) return "arc-testnet";
+        if (chainId == 11142220) return "celo-sep";
         if (chainId == 11155111) return "sep";
         if (chainId == 1313161554) return "aurora";
-        revert ApiKitUrlNotFound(chainId);
-    }
-
-    function getTransactionServiceUrl(uint256 chainId) internal pure returns (string memory) {
-        return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
-    }
-
-    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
-    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
-        if (chainId == 98866) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
-        }
-        if (chainId == 324) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
-        }
-        // safe-deployments registers Lens against the zkSync deployment in both v1.3.0 and v1.4.1.
-        if (chainId == 232) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_ZKSYNC);
-        }
-        if (_usesV141CanonicalMultiSend(chainId)) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
-        }
-        if (_usesV130CanonicalMultiSend(chainId)) {
-            return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
-        }
-        revert MultiSendCallOnlyNotFound(chainId);
-    }
-
-    function _usesV130CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
-        return (chainId == 1 || chainId == 10 || chainId == 56 || chainId == 100 || chainId == 130 || chainId == 137
-                || chainId == 196 || chainId == 480 || chainId == 999 || chainId == 1101 || chainId == 5000
-                || chainId == 8453 || chainId == 10200 || chainId == 42161 || chainId == 42220 || chainId == 43114
-                || chainId == 59144 || chainId == 84532 || chainId == 534352 || chainId == 11155111
-                || chainId == 1313161554);
-    }
-
-    function _usesV141CanonicalMultiSend(uint256 chainId) private pure returns (bool) {
-        return (chainId == 50 || chainId == 143 || chainId == 146 || chainId == 204 || chainId == 988 || chainId == 3338
-                || chainId == 3637 || chainId == 9745 || chainId == 10143 || chainId == 16661 || chainId == 43111
-                || chainId == 57073 || chainId == 80069 || chainId == 80094 || chainId == 81224 || chainId == 747474);
+        return "";
     }
 
     function getNonce(Client storage self) internal view returns (uint256) {
@@ -422,7 +447,9 @@ library Safe {
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "gasPrice", 0);
         instance(self).requestBody = vm.serializeUint(".proposeTransaction", "nonce", params.nonce);
 
-        HTTP.Response memory response = instance(self).http.instance()
+        HTTP.Response memory response = instance(self)
+            .http
+            .instance()
             .POST(
                 string.concat(
                     getApiKitUrl(self, block.chainid),
@@ -430,7 +457,9 @@ library Safe {
                     vm.toString(instance(self).safe),
                     "/multisig-transactions/"
                 )
-            ).withBody(instance(self).requestBody).request();
+            )
+            .withBody(instance(self).requestBody)
+            .request();
 
         // The response status should be 2xx, otherwise there was an issue
         if (response.status < 200 || response.status >= 300) {
