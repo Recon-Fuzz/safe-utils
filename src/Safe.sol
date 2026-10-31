@@ -29,10 +29,18 @@ library Safe {
     // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/libraries/SafeStorage.sol
     uint256 constant SAFE_APPROVED_HASHES_SLOT = 8;
 
+    // https://github.com/safe-global/safe-smart-account/blob/release/v1.4.1/contracts/Safe.sol
+    // keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
+    bytes32 constant DOMAIN_SEPARATOR_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+    // keccak256("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)")
+    bytes32 constant SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
+
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
     error ProposeTransactionFailed(uint256 statusCode, string response);
+    error GetProposedTransactionFailed(bytes32 safeTxHash, uint256 statusCode, string response);
+    error ProposedTransactionMismatch(string field, string expected, string actual);
 
     struct Instance {
         address safe;
@@ -58,6 +66,14 @@ library Safe {
         address sender;
         bytes signature;
         uint256 nonce;
+    }
+
+    /// @notice The hashes a hardware wallet displays when signing a Safe transaction
+    /// @dev    safeTxHash = keccak256(0x19 || 0x01 || domainSeparator || messageHash)
+    struct SafeTxHashes {
+        bytes32 domainSeparator;
+        bytes32 messageHash;
+        bytes32 safeTxHash;
     }
 
     function initialize(Client storage self, address safe) internal returns (Client storage) {
@@ -219,6 +235,203 @@ library Safe {
     ) internal view returns (bytes32) {
         return ISafeSmartAccount(instance(self).safe)
             .getTransactionHash(to, value, data, operation, 0, 0, 0, address(0), address(0), nonce);
+    }
+
+    // =========================================================================
+    // Proposal validation
+    // =========================================================================
+
+    /// @notice Compute the EIP-712 hashes of a Safe transaction without calling the Safe
+    /// @dev    Uses the zeroed gas fields this library proposes with (safeTxGas, baseGas, gasPrice,
+    ///         gasToken, refundReceiver). The domain includes chainId, as in Safe v1.3.0 and later.
+    ///
+    /// @param  safe        The Safe address (EIP-712 verifyingContract)
+    /// @param  chainId     The chain id (EIP-712 chainId)
+    /// @param  to          The target address for the transaction
+    /// @param  value       The value of the transaction
+    /// @param  data        The data payload for the transaction
+    /// @param  operation   The operation to perform
+    /// @param  nonce       The nonce of the transaction
+    /// @return hashes      The domain separator, the SafeTx message hash and the safeTxHash
+    function getSafeTxHashes(
+        address safe,
+        uint256 chainId,
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation,
+        uint256 nonce
+    ) internal pure returns (SafeTxHashes memory hashes) {
+        hashes.domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, safe));
+        hashes.messageHash = keccak256(
+            abi.encode(SAFE_TX_TYPEHASH, to, value, keccak256(data), operation, 0, 0, 0, address(0), address(0), nonce)
+        );
+        hashes.safeTxHash =
+            keccak256(abi.encodePacked(bytes1(0x19), bytes1(0x01), hashes.domainSeparator, hashes.messageHash));
+    }
+
+    /// @notice Compute the EIP-712 hashes of a Safe transaction for this Safe on the current chain
+    function getSafeTxHashes(
+        Client storage self,
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation,
+        uint256 nonce
+    ) internal view returns (SafeTxHashes memory) {
+        return getSafeTxHashes(instance(self).safe, block.chainid, to, value, data, operation, nonce);
+    }
+
+    /// @notice Log the hashes a hardware wallet displays, so a signer can compare them with the device
+    function logSafeTxHashes(SafeTxHashes memory hashes) internal pure {
+        console.log(string.concat("[safe-utils] domain hash: ", vm.toString(hashes.domainSeparator)));
+        console.log(string.concat("[safe-utils] message hash: ", vm.toString(hashes.messageHash)));
+        console.log(string.concat("[safe-utils] safeTxHash: ", vm.toString(hashes.safeTxHash)));
+    }
+
+    /// @notice The Transaction Service URL of a proposed transaction, as used by api-kit's getTransaction
+    function getProposedTransactionUrl(Client storage self, uint256 chainId, bytes32 safeTxHash)
+        internal
+        pure
+        returns (string memory)
+    {
+        return string.concat(getApiKitUrl(self, chainId), "/v2/multisig-transactions/", vm.toString(safeTxHash), "/");
+    }
+
+    /// @notice Fetch a proposed transaction from the Safe Transaction Service
+    ///
+    /// @param  self        The Safe client
+    /// @param  safeTxHash  The hash of the proposed Safe transaction
+    /// @return json        The raw JSON response of the Transaction Service
+    function getProposedTransaction(Client storage self, bytes32 safeTxHash) internal returns (string memory json) {
+        HTTP.Response memory response = instance(self)
+            .http
+            .instance()
+            .GET(getProposedTransactionUrl(self, block.chainid, safeTxHash)).
+            // The request is reused across calls; clear the body a previous POST set.
+            withBody("")
+            .request();
+
+        if (response.status < 200 || response.status >= 300) {
+            revert GetProposedTransactionFailed(safeTxHash, response.status, response.data);
+        }
+
+        return response.data;
+    }
+
+    /// @notice Check that a proposed transaction matches the transaction the script intends to sign
+    /// @dev    Fetches the proposal from the Transaction Service, then calls {validateProposedTransactionJson}.
+    ///         Reverts with ProposedTransactionMismatch naming the first field that differs.
+    ///
+    /// @param  self        The Safe client
+    /// @param  safeTxHash  The hash of the proposed Safe transaction
+    /// @param  to          The expected target address
+    /// @param  value       The expected value
+    /// @param  data        The expected data payload
+    /// @param  operation   The expected operation
+    /// @param  nonce       The expected nonce
+    /// @return hashes      The hashes recomputed from the expected parameters
+    function validateProposedTransaction(
+        Client storage self,
+        bytes32 safeTxHash,
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation,
+        uint256 nonce
+    ) internal returns (SafeTxHashes memory hashes) {
+        string memory json = getProposedTransaction(self, safeTxHash);
+        return validateProposedTransactionJson(self, json, safeTxHash, to, value, data, operation, nonce);
+    }
+
+    /// @notice Check that a proposed batch matches the MultiSend payload built from targets and datas
+    /// @dev    Rebuilds the payload with {getProposeTransactionsTargetAndData} and expects DelegateCall and value 0,
+    ///         as {proposeTransactions} does.
+    function validateProposedTransactions(
+        Client storage self,
+        bytes32 safeTxHash,
+        address[] memory targets,
+        bytes[] memory datas,
+        uint256 nonce
+    ) internal returns (SafeTxHashes memory hashes) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        return validateProposedTransaction(self, safeTxHash, to, 0, data, Enum.Operation.DelegateCall, nonce);
+    }
+
+    /// @notice Check an already-fetched Transaction Service response against the expected transaction
+    /// @dev    Compares the Safe, safeTxHash, to, value, data, operation, nonce and the zeroed gas fields
+    ///         this library proposes with, then recomputes the safeTxHash locally. Reverts with
+    ///         ProposedTransactionMismatch naming the first field that differs. Logs the three hashes on success.
+    ///
+    /// @param  self        The Safe client
+    /// @param  json        A multisig-transactions response of the Transaction Service
+    /// @param  safeTxHash  The hash of the proposed Safe transaction
+    /// @param  to          The expected target address
+    /// @param  value       The expected value
+    /// @param  data        The expected data payload
+    /// @param  operation   The expected operation
+    /// @param  nonce       The expected nonce
+    /// @return hashes      The hashes recomputed from the expected parameters
+    function validateProposedTransactionJson(
+        Client storage self,
+        string memory json,
+        bytes32 safeTxHash,
+        address to,
+        uint256 value,
+        bytes memory data,
+        Enum.Operation operation,
+        uint256 nonce
+    ) internal view returns (SafeTxHashes memory hashes) {
+        _checkBytes32("safeTxHash", safeTxHash, vm.parseJsonBytes32(json, ".safeTxHash"));
+        _checkAddress("safe", instance(self).safe, vm.parseJsonAddress(json, ".safe"));
+        _checkAddress("to", to, vm.parseJsonAddress(json, ".to"));
+        _checkUint("value", value, vm.parseJsonUint(json, ".value"));
+        _checkBytes("data", data, _parseJsonNullableBytes(json, ".data"));
+        _checkUint("operation", uint8(operation), vm.parseJsonUint(json, ".operation"));
+        _checkUint("nonce", nonce, vm.parseJsonUint(json, ".nonce"));
+        _checkUint("safeTxGas", 0, vm.parseJsonUint(json, ".safeTxGas"));
+        _checkUint("baseGas", 0, vm.parseJsonUint(json, ".baseGas"));
+        _checkUint("gasPrice", 0, vm.parseJsonUint(json, ".gasPrice"));
+        _checkAddress("gasToken", address(0), _parseJsonNullableAddress(json, ".gasToken"));
+        _checkAddress("refundReceiver", address(0), _parseJsonNullableAddress(json, ".refundReceiver"));
+
+        hashes = getSafeTxHashes(self, to, value, data, operation, nonce);
+        _checkBytes32("recomputed safeTxHash", hashes.safeTxHash, safeTxHash);
+        console.log("[safe-utils] proposed transaction matches (nonce %d)", nonce);
+        logSafeTxHashes(hashes);
+    }
+
+    /// @dev The Transaction Service returns null for empty data and for the zero gasToken and refundReceiver.
+    function _parseJsonNullableBytes(string memory json, string memory key) private view returns (bytes memory) {
+        if (!vm.keyExistsJson(json, key)) return "";
+        string memory raw = vm.parseJsonString(json, key);
+        if (keccak256(bytes(raw)) == keccak256("null")) return "";
+        return vm.parseBytes(raw);
+    }
+
+    function _parseJsonNullableAddress(string memory json, string memory key) private view returns (address) {
+        if (!vm.keyExistsJson(json, key)) return address(0);
+        string memory raw = vm.parseJsonString(json, key);
+        if (keccak256(bytes(raw)) == keccak256("null")) return address(0);
+        return vm.parseAddress(raw);
+    }
+
+    function _checkAddress(string memory field, address expected, address actual) private pure {
+        if (expected != actual) revert ProposedTransactionMismatch(field, vm.toString(expected), vm.toString(actual));
+    }
+
+    function _checkUint(string memory field, uint256 expected, uint256 actual) private pure {
+        if (expected != actual) revert ProposedTransactionMismatch(field, vm.toString(expected), vm.toString(actual));
+    }
+
+    function _checkBytes(string memory field, bytes memory expected, bytes memory actual) private pure {
+        if (keccak256(expected) != keccak256(actual)) {
+            revert ProposedTransactionMismatch(field, vm.toString(expected), vm.toString(actual));
+        }
+    }
+
+    function _checkBytes32(string memory field, bytes32 expected, bytes32 actual) private pure {
+        if (expected != actual) revert ProposedTransactionMismatch(field, vm.toString(expected), vm.toString(actual));
     }
 
     // =========================================================================
@@ -466,6 +679,7 @@ library Safe {
             revert ProposeTransactionFailed(response.status, response.data);
         }
 
+        logSafeTxHashes(getSafeTxHashes(self, params.to, params.value, params.data, params.operation, params.nonce));
         return safeTxHash;
     }
 

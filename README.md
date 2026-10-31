@@ -80,6 +80,27 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+#### Validate a proposal before signing
+
+A hardware wallet shows only hashes. Before co-signing, check that a proposal on the Transaction Service matches the transaction your script builds:
+
+```solidity
+// Single transaction: reverts with ProposedTransactionMismatch(field, expected, actual) on the first difference
+safe.validateProposedTransaction(safeTxHash, to, value, data, Enum.Operation.Call, nonce);
+
+// Batch: rebuilds the MultiSend payload from targets and datas, as proposeTransactions does
+safe.validateProposedTransactions(safeTxHash, targets, datas, nonce);
+```
+
+On success it logs the domain hash, message hash and safeTxHash to compare with the device screen. To compute them without the Transaction Service:
+
+```solidity
+Safe.SafeTxHashes memory hashes = safe.getSafeTxHashes(to, value, data, operation, nonce);
+Safe.logSafeTxHashes(hashes);
+```
+
+`validateProposedTransactionJson` checks a response you already fetched, for example in tests.
+
 #### Simulation (no hardware wallet required)
 
 Simulate transactions against a local fork before broadcasting. No signing device is needed — the library writes directly to the Safe's `approvedHashes` storage slot.
