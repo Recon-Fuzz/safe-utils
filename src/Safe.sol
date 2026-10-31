@@ -33,6 +33,11 @@ library Safe {
     error MultiSendCallOnlyNotFound(uint256 chainId);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
     error ProposeTransactionFailed(uint256 statusCode, string response);
+    error InvalidSignatureLength(uint256 index, uint256 length);
+    error UnsupportedSignatureType(uint256 index, uint8 v);
+    error SignerNotOwner(address signer);
+    error DuplicateSigner(address signer);
+    error NotEnoughSignatures(uint256 provided, uint256 threshold);
 
     struct Instance {
         address safe;
@@ -739,6 +744,209 @@ library Safe {
             ISafeSmartAccount.execTransaction,
             (params.to, 0, params.data, params.operation, 0, 0, 0, address(0), payable(0), params.signature)
         );
+    }
+
+    // =========================================================================
+    // Direct execution with several owners
+    // =========================================================================
+
+    /// @notice Build the calldata for an owner to approve a Safe transaction on-chain
+    /// @dev    The owner sends this calldata to the Safe as an ordinary transaction (for example with
+    ///         `--ledger`), so no raw-hash signature is needed. The approval is then picked up by
+    ///         {getApprovedHashSignatures}.
+    ///
+    /// @param  safeTxHash  The Safe transaction hash to approve, e.g. from {getSafeTxHash}
+    /// @return The calldata for `approveHash(safeTxHash)`
+    function getApproveHashData(Client storage, bytes32 safeTxHash) internal pure returns (bytes memory) {
+        return abi.encodeCall(ISafeSmartAccount.approveHash, (safeTxHash));
+    }
+
+    /// @notice Build approved-hash signatures (v = 1, r = owner) for the owners that approved a Safe transaction
+    /// @dev    Includes every owner with `approvedHashes(owner, safeTxHash) != 0`, plus `executor` when it is an
+    ///         owner: the Safe accepts the caller of execTransaction as approved without an on-chain approveHash.
+    ///         Pass address(0) as `executor` when the account that will call execTransaction is not an owner.
+    ///         The result can be passed to {combineSignatures} or the `...WithSignatures` functions, alone or
+    ///         together with offline signatures.
+    ///
+    /// @param  self        The Safe client
+    /// @param  safeTxHash  The Safe transaction hash
+    /// @param  executor    The account that will call execTransaction
+    /// @return signatures  One 65-byte approved-hash signature per approving owner, in owner order
+    function getApprovedHashSignatures(Client storage self, bytes32 safeTxHash, address executor)
+        internal
+        view
+        returns (bytes[] memory signatures)
+    {
+        ISafeSmartAccount safeAccount = ISafeSmartAccount(instance(self).safe);
+        address[] memory owners = safeAccount.getOwners();
+        bytes[] memory tmp = new bytes[](owners.length);
+        uint256 count;
+        for (uint256 i; i < owners.length; i++) {
+            if (owners[i] == executor || safeAccount.approvedHashes(owners[i], safeTxHash) != 0) {
+                // Approved-hash signature format: r=owner (padded), s=0, v=1
+                tmp[count++] = abi.encodePacked(bytes32(uint256(uint160(owners[i]))), bytes32(0), uint8(1));
+            }
+        }
+        signatures = new bytes[](count);
+        for (uint256 i; i < count; i++) {
+            signatures[i] = tmp[i];
+        }
+    }
+
+    /// @notice Combine owner signatures into the `signatures` bytes that execTransaction expects
+    /// @dev    Each entry must be 65 bytes and one of:
+    ///         - an ECDSA signature of the safeTxHash (v = 27 or 28), e.g. from {sign} without a hardware
+    ///           wallet, from {sign} with Ledger (EIP-712), or `cast wallet sign --data`;
+    ///         - an eth_sign signature of the safeTxHash with v + 4 (v = 31 or 32), as {sign} produces for Trezor;
+    ///         - an approved-hash signature (v = 1, r = owner), as {getApprovedHashSignatures} produces.
+    ///         Contract signatures (v = 0) are not supported. Each entry must belong to a current owner, owners
+    ///         must not repeat, and at least `threshold` entries are required. The output is sorted by owner
+    ///         address ascending, as Safe's checkNSignatures requires, so the input order does not matter.
+    ///
+    /// @param  self        The Safe client
+    /// @param  safeTxHash  The Safe transaction hash the owners signed or approved
+    /// @param  signatures  The owner signatures, in any order
+    /// @return combined    The concatenated signatures, sorted by owner
+    function combineSignatures(Client storage self, bytes32 safeTxHash, bytes[] memory signatures)
+        internal
+        view
+        returns (bytes memory combined)
+    {
+        ISafeSmartAccount safeAccount = ISafeSmartAccount(instance(self).safe);
+        uint256 threshold = safeAccount.getThreshold();
+        if (signatures.length < threshold) revert NotEnoughSignatures(signatures.length, threshold);
+
+        uint256 n = signatures.length;
+        address[] memory signers = new address[](n);
+        bytes[] memory sorted = new bytes[](n);
+        for (uint256 i; i < n; i++) {
+            signers[i] = _recoverSigner(safeTxHash, signatures[i], i);
+            if (!safeAccount.isOwner(signers[i])) revert SignerNotOwner(signers[i]);
+            sorted[i] = signatures[i];
+        }
+        // Sort ascending by owner: Safe's checkNSignatures requires strictly increasing owners.
+        for (uint256 i; i < n; i++) {
+            for (uint256 j = i + 1; j < n; j++) {
+                if (uint160(signers[i]) > uint160(signers[j])) {
+                    (signers[i], signers[j]) = (signers[j], signers[i]);
+                    (sorted[i], sorted[j]) = (sorted[j], sorted[i]);
+                }
+            }
+        }
+        for (uint256 i; i < n; i++) {
+            if (i > 0 && signers[i] == signers[i - 1]) revert DuplicateSigner(signers[i]);
+            combined = bytes.concat(combined, sorted[i]);
+        }
+    }
+
+    /// @notice Build execTransaction calldata for a single call, signed by several owners
+    /// @dev    Uses the Safe's current nonce. See the explicit-nonce overload for sequential transactions.
+    ///
+    /// @param  self        The Safe client
+    /// @param  to          The target address for the transaction
+    /// @param  data        The data payload for the transaction
+    /// @param  signatures  The owner signatures, in any order; see {combineSignatures}
+    /// @return The calldata for execTransaction, to be sent to the Safe
+    function getExecTransactionDataWithSignatures(
+        Client storage self,
+        address to,
+        bytes memory data,
+        bytes[] memory signatures
+    ) internal view returns (bytes memory) {
+        return getExecTransactionDataWithSignatures(self, to, data, signatures, getNonce(self));
+    }
+
+    /// @notice Build execTransaction calldata for a single call, signed by several owners, with an explicit nonce
+    /// @dev    The nonce selects the safeTxHash the signatures are checked against. execTransaction always
+    ///         uses the Safe's on-chain nonce, so the calldata only succeeds once the Safe's nonce equals `nonce`.
+    ///         Use this to prepare several transactions in one script run before any of them executes.
+    function getExecTransactionDataWithSignatures(
+        Client storage self,
+        address to,
+        bytes memory data,
+        bytes[] memory signatures,
+        uint256 nonce
+    ) internal view returns (bytes memory) {
+        bytes32 safeTxHash = getSafeTxHash(self, to, 0, data, Enum.Operation.Call, nonce);
+        return getExecTransactionData(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: Enum.Operation.Call,
+                sender: address(0),
+                signature: combineSignatures(self, safeTxHash, signatures),
+                nonce: nonce
+            })
+        );
+    }
+
+    /// @notice Build execTransaction calldata for a MultiSend batch, signed by several owners
+    /// @dev    The signatures must be over the batch safeTxHash with Enum.Operation.DelegateCall, as for
+    ///         {proposeTransactionsWithSignature}. Uses the Safe's current nonce.
+    ///
+    /// @param  self        The Safe client
+    /// @param  targets     The list of target addresses for the transactions
+    /// @param  datas       The list of data payloads for the transactions
+    /// @param  signatures  The owner signatures, in any order; see {combineSignatures}
+    /// @return The calldata for execTransaction, to be sent to the Safe
+    function getExecTransactionsDataWithSignatures(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        bytes[] memory signatures
+    ) internal view returns (bytes memory) {
+        return getExecTransactionsDataWithSignatures(self, targets, datas, signatures, getNonce(self));
+    }
+
+    /// @notice Build execTransaction calldata for a MultiSend batch, signed by several owners, with an explicit nonce
+    /// @dev    Same nonce rationale as getExecTransactionDataWithSignatures(..., nonce).
+    function getExecTransactionsDataWithSignatures(
+        Client storage self,
+        address[] memory targets,
+        bytes[] memory datas,
+        bytes[] memory signatures,
+        uint256 nonce
+    ) internal view returns (bytes memory) {
+        (address to, bytes memory data) = getProposeTransactionsTargetAndData(self, targets, datas);
+        // using DelegateCall to preserve msg.sender across sub-calls
+        bytes32 safeTxHash = getSafeTxHash(self, to, 0, data, Enum.Operation.DelegateCall, nonce);
+        return getExecTransactionData(
+            self,
+            ExecTransactionParams({
+                to: to,
+                value: 0,
+                data: data,
+                operation: Enum.Operation.DelegateCall,
+                sender: address(0),
+                signature: combineSignatures(self, safeTxHash, signatures),
+                nonce: nonce
+            })
+        );
+    }
+
+    /// @dev Return the owner a 65-byte signature stands for, using the same rules as Safe's checkNSignatures.
+    function _recoverSigner(bytes32 safeTxHash, bytes memory signature, uint256 index) private pure returns (address) {
+        if (signature.length != 65) revert InvalidSignatureLength(index, signature.length);
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly ("memory-safe") {
+            r := mload(add(signature, 0x20))
+            s := mload(add(signature, 0x40))
+            v := byte(0, mload(add(signature, 0x60)))
+        }
+        if (v == 1) return address(uint160(uint256(r)));
+        if (v == 31 || v == 32) {
+            // eth_sign: the owner signed "\x19Ethereum Signed Message:\n32" + safeTxHash, and v was raised by 4.
+            // Malleability does not matter here: this mirrors checkNSignatures, which uses plain ecrecover too.
+            /// forge-lint: disable-next-line(ecrecover)
+            return ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", safeTxHash)), v - 4, r, s);
+        }
+        /// forge-lint: disable-next-line(ecrecover)
+        if (v == 27 || v == 28) return ecrecover(safeTxHash, v, r, s);
+        revert UnsupportedSignatureType(index, v);
     }
 
     /// @notice Prepare the signature for a transaction, using a custom nonce

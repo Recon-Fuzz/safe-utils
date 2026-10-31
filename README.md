@@ -80,6 +80,32 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+#### Direct execution with several owners (no Transaction Service)
+
+On a chain without the Safe Transaction Service, owners can approve a transaction and anyone can execute it with `execTransaction`. Approvals come from offline signatures, on-chain `approveHash` calls, or a mix of both.
+
+```solidity
+bytes32 safeTxHash = safe.getSafeTxHash(target, 0, data, Enum.Operation.Call, nonce);
+
+// Path 1: offline signatures over safeTxHash, e.g. from safe.sign(...) or `cast wallet sign`, in any order.
+// eth_sign signatures must have v + 4 (31/32), as safe.sign produces for Trezor.
+bytes[] memory signatures = new bytes[](2);
+signatures[0] = signatureFromOwnerA;
+signatures[1] = signatureFromOwnerB;
+
+// Path 2: an owner sends approveHash as an ordinary transaction, which works with --ledger or --trezor
+// without the ffi signing step. Send this calldata to the Safe address:
+bytes memory approveData = safe.getApproveHashData(safeTxHash);
+// Then collect v = 1 signatures for every owner that approved, plus the executor if it is an owner:
+bytes[] memory approved = safe.getApprovedHashSignatures(safeTxHash, executor);
+
+// Build execTransaction calldata: signatures are checked against the owners and the threshold, then sorted
+bytes memory execData = safe.getExecTransactionDataWithSignatures(target, data, signatures, nonce);
+bytes memory batchExecData = safe.getExecTransactionsDataWithSignatures(targets, datas, signatures, nonce);
+```
+
+Both paths can be mixed in one `bytes[]`. Batches must be signed with `Enum.Operation.DelegateCall`. `combineSignatures(safeTxHash, signatures)` returns the combined `signatures` bytes on their own.
+
 #### Simulation (no hardware wallet required)
 
 Simulate transactions against a local fork before broadcasting. No signing device is needed — the library writes directly to the Safe's `approvedHashes` storage slot.
