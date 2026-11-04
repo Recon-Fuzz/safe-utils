@@ -80,6 +80,12 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+Batches delegatecall `MultiSendCallOnly`. On a chain the Safe transaction service does not serve, the library uses the canonical v1.4.1 deployment, then v1.3.0, whichever has code on the current chain. For a deployment at another address, set it on the client:
+
+```solidity
+safe.withMultiSendCallOnly(0x...);
+```
+
 #### Simulation (no hardware wallet required)
 
 Simulate transactions against a local fork before broadcasting. No signing device is needed — the library writes directly to the Safe's `approvedHashes` storage slot.

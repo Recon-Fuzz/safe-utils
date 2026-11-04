@@ -48,6 +48,8 @@ library Safe {
 
     struct Client {
         Instance[] instances;
+        // Set with {withMultiSendCallOnly}; address(0) means resolve it from the chain id.
+        address multiSendCallOnly;
     }
 
     struct ExecTransactionParams {
@@ -89,8 +91,25 @@ library Safe {
         return string.concat(SAFE_TRANSACTION_SERVICE_BASE_URL, "/", getNetworkShortName(chainId), "/api");
     }
 
-    // Keep the first Client parameter so existing `using Safe for *` call sites remain unchanged.
-    function getMultiSendCallOnly(Client storage, uint256 chainId) internal pure returns (MultiSendCallOnly) {
+    /// @notice Use `multiSendCallOnly` for batches instead of the address resolved from the chain id
+    /// @dev    For chains whose MultiSendCallOnly is not at a canonical address. address(0) clears the override.
+    ///
+    /// @param  self                The Safe client
+    /// @param  multiSendCallOnly   The MultiSendCallOnly contract to delegatecall for batches
+    /// @return self                The Safe client
+    function withMultiSendCallOnly(Client storage self, address multiSendCallOnly) internal returns (Client storage) {
+        self.multiSendCallOnly = multiSendCallOnly;
+        return self;
+    }
+
+    /// @notice Return the MultiSendCallOnly contract used for batches on `chainId`
+    /// @dev    In order: the client override set with {withMultiSendCallOnly}; the deployment safe-deployments
+    ///         lists for a chain the transaction service serves; and, for the current chain only, the canonical
+    ///         v1.4.1 then v1.3.0 address if it has code. Reverts with MultiSendCallOnlyNotFound otherwise.
+    function getMultiSendCallOnly(Client storage self, uint256 chainId) internal view returns (MultiSendCallOnly) {
+        if (self.multiSendCallOnly != address(0)) {
+            return MultiSendCallOnly(self.multiSendCallOnly);
+        }
         if (chainId == 324) {
             return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_ZKSYNC);
         }
@@ -103,6 +122,16 @@ library Safe {
         }
         if (_usesV141CanonicalMultiSend(chainId)) {
             return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+        }
+        // Chains without a transaction service often still have the canonical deployments from the singleton
+        // factory. Code can only be checked on the current chain.
+        if (chainId == block.chainid) {
+            if (MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL.code.length > 0) {
+                return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+            }
+            if (MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL.code.length > 0) {
+                return MultiSendCallOnly(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+            }
         }
         revert MultiSendCallOnlyNotFound(chainId);
     }

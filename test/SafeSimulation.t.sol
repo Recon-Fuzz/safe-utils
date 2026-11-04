@@ -109,6 +109,22 @@ contract SafeSimulationTest is Test {
         assertFalse(ok);
     }
 
+    function test_Safe_simulateTransactionsNoSign_unservedChainUsesCanonicalMultiSend() public {
+        // Ink Sepolia (763373) has no official transaction service. The Base fork has the canonical
+        // MultiSendCallOnly deployments, as such chains often do.
+        vm.chainId(763373);
+
+        address[] memory targets = new address[](2);
+        bytes[] memory datas = new bytes[](2);
+        targets[0] = WETH;
+        datas[0] = abi.encodeCall(IWETH.withdraw, (0));
+        targets[1] = WETH;
+        datas[1] = abi.encodeCall(IWETH.withdraw, (0));
+
+        bool ok = safe.simulateTransactionsNoSign(targets, datas, SIGNER_1);
+        assertTrue(ok);
+    }
+
     // -------------------------------------------------------------------------
     // Multi-sig simulation
     // -------------------------------------------------------------------------
