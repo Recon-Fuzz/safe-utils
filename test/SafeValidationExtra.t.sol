@@ -160,7 +160,22 @@ contract SafeValidationNegativeTest is BaseProposalFixture {
 
     function test_Safe_validateProposedTransactionJson_revertsOnMissingRequiredFields() public {
         _expectRejected('"safeTxGas": "0",', "");
+        _expectRejected('"nonce": "3",', "");
+    }
+
+    function test_Safe_validateProposedTransactionJson_revertsOnMissingNonemptyData() public {
         _expectRejected(string.concat('"data": "', vm.toString(data), '",'), "");
+    }
+
+    function test_Safe_validateProposedTransactionJson_acceptsMissingEmptyData() public view {
+        Safe.SafeTxHashes memory expected = safe.getSafeTxHashes(to, 0, "", Enum.Operation.DelegateCall, PROPOSAL_NONCE);
+        string memory response = _replace(string.concat('"data": "', vm.toString(data), '",'), "");
+        response = vm.replace(response, vm.toString(PROPOSAL_SAFE_TX_HASH), vm.toString(expected.safeTxHash));
+
+        Safe.SafeTxHashes memory actual = safe.validateProposedTransactionJson(
+            response, expected.safeTxHash, to, 0, "", Enum.Operation.DelegateCall, PROPOSAL_NONCE
+        );
+        assertEq(actual.safeTxHash, expected.safeTxHash);
     }
 
     function test_Safe_validateProposedTransactionJson_revertsOnInvalidAddresses() public {
