@@ -126,3 +126,86 @@ contract SafeConfigTest is Test {
         return address(safe.getMultiSendCallOnly(chainId));
     }
 }
+
+contract SafeMultiSendFallbackTest is Test {
+    using Safe for *;
+
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL = 0x40A2aCCbd92BCA938b02010E17A5b8929b49130D;
+    address constant MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL = 0x9641d764fc13c8B624c04430C7356C1C7C8102e2;
+    // Ink Sepolia: the official transaction service does not serve it.
+    uint256 constant UNSERVED_CHAIN_ID = 763373;
+
+    Safe.Client safe;
+    bytes v130Code;
+    bytes v141Code;
+
+    function setUp() public {
+        vm.createSelectFork("https://mainnet.base.org");
+        v130Code = MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL.code;
+        v141Code = MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL.code;
+        assertGt(v130Code.length, 0);
+        assertGt(v141Code.length, 0);
+        // Start every test with no MultiSendCallOnly code; each test etches the deployments it needs.
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL, "");
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, "");
+        vm.chainId(UNSERVED_CHAIN_ID);
+        safe.initialize(address(0xBEEF));
+    }
+
+    function test_Safe_getMultiSendCallOnly_unservedChainFallsBackToV141() public {
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        assertEq(address(safe.getMultiSendCallOnly(UNSERVED_CHAIN_ID)), MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+    }
+
+    function test_Safe_getMultiSendCallOnly_unservedChainFallsBackToV130() public {
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL, v130Code);
+        assertEq(address(safe.getMultiSendCallOnly(UNSERVED_CHAIN_ID)), MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+    }
+
+    function test_Safe_getMultiSendCallOnly_unservedChainPrefersV141() public {
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL, v130Code);
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        assertEq(address(safe.getMultiSendCallOnly(UNSERVED_CHAIN_ID)), MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+    }
+
+    function test_Safe_getMultiSendCallOnly_unservedChainRevertsWithoutCode() public {
+        vm.expectRevert(abi.encodeWithSelector(Safe.MultiSendCallOnlyNotFound.selector, UNSERVED_CHAIN_ID));
+        this.exposedGetMultiSendCallOnly(UNSERVED_CHAIN_ID);
+    }
+
+    function test_Safe_getMultiSendCallOnly_fallbackOnlyChecksCurrentChain() public {
+        // Code on the current chain says nothing about another chain.
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        vm.expectRevert(abi.encodeWithSelector(Safe.MultiSendCallOnlyNotFound.selector, 31337));
+        this.exposedGetMultiSendCallOnly(31337);
+    }
+
+    function test_Safe_getMultiSendCallOnly_servedChainIgnoresFallback() public {
+        // Base (8453) uses v1.3.0 even when only v1.4.1 has code.
+        vm.chainId(8453);
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        assertEq(address(safe.getMultiSendCallOnly(8453)), MULTI_SEND_CALL_ONLY_ADDRESS_V130_CANONICAL);
+    }
+
+    function test_Safe_withMultiSendCallOnly_overridesResolution() public {
+        address custom = address(0xCAFE);
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        safe.withMultiSendCallOnly(custom);
+
+        assertEq(address(safe.getMultiSendCallOnly(UNSERVED_CHAIN_ID)), custom);
+        assertEq(address(safe.getMultiSendCallOnly(8453)), custom);
+
+        (address to,) = safe.getProposeTransactionsTargetAndData(new address[](0), new bytes[](0));
+        assertEq(to, custom);
+    }
+
+    function test_Safe_withMultiSendCallOnly_zeroAddressClearsOverride() public {
+        vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
+        safe.withMultiSendCallOnly(address(0xCAFE)).withMultiSendCallOnly(address(0));
+        assertEq(address(safe.getMultiSendCallOnly(UNSERVED_CHAIN_ID)), MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL);
+    }
+
+    function exposedGetMultiSendCallOnly(uint256 chainId) external view returns (address) {
+        return address(safe.getMultiSendCallOnly(chainId));
+    }
+}

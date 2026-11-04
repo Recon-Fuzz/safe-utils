@@ -80,6 +80,38 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+Batches delegatecall `MultiSendCallOnly`. On a chain the Safe transaction service does not serve, the library uses the canonical v1.4.1 deployment, then v1.3.0, whichever has code on the current chain. For a deployment at another address, set it on the client:
+
+```solidity
+safe.withMultiSendCallOnly(0x...);
+```
+
+#### Direct execution with several owners (no Transaction Service)
+
+On a chain without the Safe Transaction Service, owners can approve a transaction and anyone can execute it with `execTransaction`. Approvals come from offline signatures, on-chain `approveHash` calls, or a mix of both.
+
+```solidity
+bytes32 safeTxHash = safe.getSafeTxHash(target, 0, data, Enum.Operation.Call, nonce);
+
+// Path 1: offline signatures over safeTxHash, e.g. from safe.sign(...) or `cast wallet sign`, in any order.
+// eth_sign signatures must have v + 4 (31/32), as safe.sign produces for Trezor.
+bytes[] memory signatures = new bytes[](2);
+signatures[0] = signatureFromOwnerA;
+signatures[1] = signatureFromOwnerB;
+
+// Path 2: an owner sends approveHash as an ordinary transaction, which works with --ledger or --trezor
+// without the ffi signing step. Send this calldata to the Safe address:
+bytes memory approveData = safe.getApproveHashData(safeTxHash);
+// Then collect v = 1 signatures for every owner that approved, plus the executor if it is an owner:
+bytes[] memory approved = safe.getApprovedHashSignatures(safeTxHash, executor);
+
+// Build execTransaction calldata: signatures are checked against the owners and the threshold, then sorted
+bytes memory execData = safe.getExecTransactionDataWithSignatures(target, data, signatures, nonce);
+bytes memory batchExecData = safe.getExecTransactionsDataWithSignatures(targets, datas, signatures, nonce);
+```
+
+Both paths can be mixed in one `bytes[]`. Batches must be signed with `Enum.Operation.DelegateCall`. `combineSignatures(safeTxHash, signatures)` returns the combined `signatures` bytes on their own.
+
 #### Validate a proposal before signing
 
 A hardware wallet shows only hashes. Before co-signing, check that a proposal on the Transaction Service matches the transaction your script builds:
