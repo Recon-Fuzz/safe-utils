@@ -80,6 +80,12 @@ safe.proposeTransactionsWithSignature(targets, datas, sender, signature);
 
 **⚠️ Important**: Batch transactions require `Enum.Operation.DelegateCall` (not `Call`). Using `Call` causes signature validation errors.
 
+Batches delegatecall `MultiSendCallOnly`. On a chain the Safe transaction service does not serve, the library uses the canonical v1.4.1 deployment, then v1.3.0, whichever has code on the current chain. For a deployment at another address, set it on the client:
+
+```solidity
+safe.withMultiSendCallOnly(0x...);
+```
+
 #### Direct execution with several owners (no Transaction Service)
 
 On a chain without the Safe Transaction Service, owners can approve a transaction and anyone can execute it with `execTransaction`. Approvals come from offline signatures, on-chain `approveHash` calls, or a mix of both.
