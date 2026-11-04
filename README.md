@@ -181,7 +181,7 @@ bool ok = safe.simulateTransactionMultiSigNoSign(target, data, signers);
 bool ok = safe.simulateTransactionsMultiSigNoSign(targets, datas, signers);
 ```
 
-All simulate functions return `true` on success and `false` on revert — they never throw, so you can inspect failures without aborting the script.
+Simulation helpers return `true` when Safe execution succeeds and `false` when it fails. Errors before execution, such as invalid batch inputs or missing MultiSend code, can still revert.
 
 Mode detection helpers let you branch between simulation and broadcast in one script:
 
