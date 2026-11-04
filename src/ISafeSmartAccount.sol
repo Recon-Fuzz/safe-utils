@@ -8,6 +8,14 @@ interface ISafeSmartAccount {
 
     function isOwner(address owner) external view returns (bool);
 
+    function getOwners() external view returns (address[] memory);
+
+    function getThreshold() external view returns (uint256);
+
+    function approvedHashes(address owner, bytes32 hash) external view returns (uint256);
+
+    function approveHash(bytes32 hashToApprove) external;
+
     function getTransactionHash(
         address to,
         uint256 value,
