@@ -28,6 +28,7 @@ contract SafeTest is Test {
     }
 
     function test_Safe_proposeTransaction() public {
+        vm.skip(!vm.envOr("SAFE_UTILS_LIVE_API_TESTS", false), "requires live Transaction Service writes");
         address weth = 0x4200000000000000000000000000000000000006;
         vm.rememberKey(uint256(foundrySigner1PrivateKey));
         safe.proposeTransaction(weth, abi.encodeCall(IWETH.withdraw, (0)), foundrySigner1);
@@ -41,6 +42,7 @@ contract SafeTest is Test {
     }
 
     function test_Safe_proposeTransactionsWithSignature() public {
+        vm.skip(!vm.envOr("SAFE_UTILS_LIVE_API_TESTS", false), "requires live Transaction Service writes");
         address weth = 0x4200000000000000000000000000000000000006;
 
         // Create batch of transactions
@@ -189,6 +191,7 @@ contract SafeMultiSendFallbackTest is Test {
 
     function test_Safe_withMultiSendCallOnly_overridesResolution() public {
         address custom = address(0xCAFE);
+        vm.etch(custom, v141Code);
         vm.etch(MULTI_SEND_CALL_ONLY_ADDRESS_V141_CANONICAL, v141Code);
         safe.withMultiSendCallOnly(custom);
 

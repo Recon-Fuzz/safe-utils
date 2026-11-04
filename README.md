@@ -86,38 +86,62 @@ Batches delegatecall `MultiSendCallOnly`. On a chain the Safe transaction servic
 safe.withMultiSendCallOnly(0x...);
 ```
 
+The override applies to every chain queried through that client. Clear it with `safe.withMultiSendCallOnly(address(0))` when it no longer applies. On the current chain, an override with no code reverts with `MultiSendCallOnlyHasNoCode` before a batch is built. Queries for another chain cannot check that chain's code.
+
+Use only a trusted `MultiSendCallOnly` deployment. The batch delegatecalls this address in the Safe's context. Checking that code exists does not verify what the code does; the same limitation applies to automatic canonical-address fallback.
+
 #### Direct execution with several owners (no Transaction Service)
 
 On a chain without the Safe Transaction Service, owners can approve a transaction and anyone can execute it with `execTransaction`. Approvals come from offline signatures, on-chain `approveHash` calls, or a mix of both.
 
-```solidity
-bytes32 safeTxHash = safe.getSafeTxHash(target, 0, data, Enum.Operation.Call, nonce);
+For a single call, collect signatures over its hash and pass them in any order:
 
-// Path 1: offline signatures over safeTxHash, e.g. from safe.sign(...) or `cast wallet sign`, in any order.
-// eth_sign signatures must have v + 4 (31/32), as safe.sign produces for Trezor.
+```solidity
+bytes32 singleHash = safe.getSafeTxHash(target, 0, data, Enum.Operation.Call, nonce);
+
+// Both owners sign singleHash, for example with safe.sign(...).
 bytes[] memory signatures = new bytes[](2);
 signatures[0] = signatureFromOwnerA;
 signatures[1] = signatureFromOwnerB;
-
-// Path 2: an owner sends approveHash as an ordinary transaction, which works with --ledger or --trezor
-// without the ffi signing step. Send this calldata to the Safe address:
-bytes memory approveData = safe.getApproveHashData(safeTxHash);
-// Then collect v = 1 signatures for every owner that approved, plus the executor if it is an owner:
-bytes[] memory approved = safe.getApprovedHashSignatures(safeTxHash, executor);
-
-// Build execTransaction calldata: signatures are checked against the owners and the threshold, then sorted
 bytes memory execData = safe.getExecTransactionDataWithSignatures(target, data, signatures, nonce);
-bytes memory batchExecData = safe.getExecTransactionsDataWithSignatures(targets, datas, signatures, nonce);
 ```
 
-Both paths can be mixed in one `bytes[]`. Batches must be signed with `Enum.Operation.DelegateCall`. `combineSignatures(safeTxHash, signatures)` returns the combined `signatures` bytes on their own.
+For a batch, collect new signatures over the MultiSend payload with `DelegateCall`:
+
+```solidity
+(address batchTo, bytes memory batchData) = safe.getProposeTransactionsTargetAndData(targets, datas);
+bytes32 batchHash = safe.getSafeTxHash(batchTo, 0, batchData, Enum.Operation.DelegateCall, nonce);
+
+// Both owners sign batchHash. Signatures over singleHash cannot authorize this batch.
+bytes[] memory batchSignatures = new bytes[](2);
+batchSignatures[0] = batchSignatureFromOwnerA;
+batchSignatures[1] = batchSignatureFromOwnerB;
+bytes memory batchExecData = safe.getExecTransactionsDataWithSignatures(targets, datas, batchSignatures, nonce);
+```
+
+For on-chain approvals, an owner sends `approveHash` calldata to the Safe as an ordinary transaction. This works with `--ledger` or `--trezor` without the FFI signing step:
+
+```solidity
+bytes32 approvalHash = safe.getSafeTxHash(target, 0, data, Enum.Operation.Call, nonce);
+bytes memory approveData = safe.getApproveHashData(approvalHash);
+
+// After enough owners have approved on-chain, collect their entries and build execution calldata.
+bytes[] memory approvals = safe.getApprovedHashSignatures(approvalHash, executor);
+bytes memory approvedExecData = safe.getExecTransactionDataWithSignatures(target, data, approvals, nonce);
+```
+
+`getApprovedHashSignatures` also includes `executor` when it is an owner. That account must actually call `execTransaction` unless it has separately approved the hash on-chain. Pass `address(0)` when execution will come from a non-owner.
+
+Offline signatures and approval entries can be combined in one `bytes[]`, with each owner appearing once. `combineSignatures(safeTxHash, signatures)` checks owner identities, duplicates and the threshold, then sorts the entries. For approval entries (`v = 1`), it does not verify consent: the Safe checks the recorded approval or the actual executor during execution. Building calldata successfully does not guarantee it can execute.
+
+ECDSA signatures use `v = 27/28`. `eth_sign` signatures need `v + 4` (`31/32`), as `safe.sign` produces for Trezor. Contract signatures (`v = 0`) are not supported by these helpers. The execution helpers use zero ETH value and zero gas/refund fields.
 
 #### Validate a proposal before signing
 
 A hardware wallet shows only hashes. Before co-signing, check that a proposal on the Transaction Service matches the transaction your script builds:
 
 ```solidity
-// Single transaction: reverts with ProposedTransactionMismatch(field, expected, actual) on the first difference
+// Single transaction: compares the proposal with these locally supplied expectations
 safe.validateProposedTransaction(safeTxHash, to, value, data, Enum.Operation.Call, nonce);
 
 // Batch: rebuilds the MultiSend payload from targets and datas, as proposeTransactions does
@@ -132,6 +156,10 @@ Safe.logSafeTxHashes(hashes);
 ```
 
 `validateProposedTransactionJson` checks a response you already fetched, for example in tests.
+
+Hash computation and proposal validation support Safe v1.3.0 and later. Older Safes use a different EIP-712 domain. These helpers require zero `safeTxGas`, `baseGas`, `gasPrice`, `gasToken` and `refundReceiver`, matching transactions proposed by this library. They compare calldata byte for byte without decoding it.
+
+A differing field reverts with `ProposedTransactionMismatch(field, expected, actual)`. Malformed responses or missing required fields may instead produce a JSON parser error. Supply expected values from your own script; copying them from the response would defeat the comparison.
 
 #### Simulation (no hardware wallet required)
 
@@ -153,7 +181,7 @@ bool ok = safe.simulateTransactionMultiSigNoSign(target, data, signers);
 bool ok = safe.simulateTransactionsMultiSigNoSign(targets, datas, signers);
 ```
 
-All simulate functions return `true` on success and `false` on revert — they never throw, so you can inspect failures without aborting the script.
+Simulation helpers return `true` when Safe execution succeeds and `false` when it fails. Errors before execution, such as invalid batch inputs or missing MultiSend code, can still revert.
 
 Mode detection helpers let you branch between simulation and broadcast in one script:
 
@@ -212,6 +240,18 @@ ffi = true
 ```
 
 - All `Recon-Fuzz/solidity-http` dependencies
+
+### Tests
+
+Run `npm ci` and `forge test` from the repository root. Some tests read Base through its public RPC. Signature validation and the additional hash tests also deploy Safes locally, so those checks do not require an RPC connection.
+
+The two tests that submit proposals to the live Transaction Service are skipped by default. To run them explicitly against the repository's test Safe:
+
+```bash
+SAFE_UTILS_LIVE_API_TESTS=true forge test --match-test 'test_Safe_propose'
+```
+
+This command writes proposals to the service. It does not broadcast on-chain transactions.
 
 ### Third-party integrations
 

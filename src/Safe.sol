@@ -37,6 +37,7 @@ library Safe {
 
     error ApiKitUrlNotFound(uint256 chainId);
     error MultiSendCallOnlyNotFound(uint256 chainId);
+    error MultiSendCallOnlyHasNoCode(address multiSendCallOnly);
     error ArrayLengthsMismatch(uint256 a, uint256 b);
     error ProposeTransactionFailed(uint256 statusCode, string response);
     error InvalidSignatureLength(uint256 index, uint256 length);
@@ -114,6 +115,8 @@ library Safe {
 
     /// @notice Use `multiSendCallOnly` for batches instead of the address resolved from the chain id
     /// @dev    For chains whose MultiSendCallOnly is not at a canonical address. address(0) clears the override.
+    ///         The override must be trusted: batches delegatecall it in the Safe's context. Code presence is
+    ///         checked when resolving it on the current chain; this does not verify the implementation.
     ///
     /// @param  self                The Safe client
     /// @param  multiSendCallOnly   The MultiSendCallOnly contract to delegatecall for batches
@@ -127,8 +130,12 @@ library Safe {
     /// @dev    In order: the client override set with {withMultiSendCallOnly}; the deployment safe-deployments
     ///         lists for a chain the transaction service serves; and, for the current chain only, the canonical
     ///         v1.4.1 then v1.3.0 address if it has code. Reverts with MultiSendCallOnlyNotFound otherwise.
+    ///         An override with no code on the current chain reverts with MultiSendCallOnlyHasNoCode.
     function getMultiSendCallOnly(Client storage self, uint256 chainId) internal view returns (MultiSendCallOnly) {
         if (self.multiSendCallOnly != address(0)) {
+            if (chainId == block.chainid && self.multiSendCallOnly.code.length == 0) {
+                revert MultiSendCallOnlyHasNoCode(self.multiSendCallOnly);
+            }
             return MultiSendCallOnly(self.multiSendCallOnly);
         }
         if (chainId == 324) {
@@ -1045,6 +1052,8 @@ library Safe {
     ///         Contract signatures (v = 0) are not supported. Each entry must belong to a current owner, owners
     ///         must not repeat, and at least `threshold` entries are required. The output is sorted by owner
     ///         address ascending, as Safe's checkNSignatures requires, so the input order does not matter.
+    ///         For v = 1, this checks owner identity only. The Safe verifies that the owner approved this hash
+    ///         on-chain or is the actual executor. A successful combination does not prove those approvals exist.
     ///
     /// @param  self        The Safe client
     /// @param  safeTxHash  The Safe transaction hash the owners signed or approved
